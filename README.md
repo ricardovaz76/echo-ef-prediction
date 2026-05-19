@@ -1,6 +1,6 @@
 # Dual-View Ejection Fraction Prediction Model
 
-A multi-task deep learning model for left ventricle segmentation and ejection fraction (EF prediction from pediatric echocardiogram videos. Trained on the EchoNet Pediatric dataset using a dual-view (A4C + PSAX) architecture with a two-phase training strategy.
+A multi-task deep learning model for left ventricle segmentation and ejection fraction (EF) prediction from pediatric echocardiogram videos. Trained on the EchoNet Pediatric dataset using a dual-view (A4C + PSAX) architecture with a two-phase training strategy.
 
 ## Test Metrics
 | Metric | Score |
@@ -9,7 +9,7 @@ A multi-task deep learning model for left ventricle segmentation and ejection fr
 | Test RMSE | 6.2825 |
 | R² | 0.6940 |
 | Dice Score | 0.89 |
-| AUC | 0.94 |
+| AUC | 0.939 |
 
 ## Demo
 
