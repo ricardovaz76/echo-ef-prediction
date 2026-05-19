@@ -38,4 +38,4 @@ A multi-task deep learning model for left ventricle segmentation and ejection fr
 
 ## Architecture
 
-<img src="assets/dual-view_model_diagram.svg" width="750" alt="Model Architecture"/>
+<img src="assets/dual-view_model_diagram.svg" width="900" alt="Model Architecture"/>
