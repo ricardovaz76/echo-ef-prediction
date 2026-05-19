@@ -41,3 +41,15 @@ A multi-task deep learning model for left ventricle segmentation and ejection fr
 <img src="assets/dual-view_model_diagram.svg" width="1600" alt="Model Architecture"/>
 
 Both `A4C` and `PSAX` views are processed through a shared `ResNet34` encoder. Each view produces a segmentation mask via a `Gated UNet` decoder and temporal features via a `1D residual conv` and `transformer`. The two streams are fused and passed through a 3-layer MLP for the final EF prediction. 
+
+## Dataset
+
+This project uses the [Echonet Pediatric](https://echonet.github.io/pediatric/) dataset from Standford. Access to their dataset requires agreeing to their usage terms on the official site.
+
+## Installation
+
+```bash
+pip install torch torchvision numpy pandas matplotlib scikit-learn opencv-python
+```
+
+> **Note:** This project was developed in Google Colab. The simplest way to run it is to open the notebook directly in Colab and mount your Google Drive with the dataset.
