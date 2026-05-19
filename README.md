@@ -39,3 +39,5 @@ A multi-task deep learning model for left ventricle segmentation and ejection fr
 ## Architecture
 
 <img src="assets/dual-view_model_diagram.svg" width="1200" alt="Model Architecture"/>
+
+Both `A4C` and `PSAX` views are processed through a shared `ResNet34` encoder. Each view produces a segmentation mask via a `Gated UNet` decoder and temporal features via a `1D residual conv` and `transformer`. The two streams are fused and passed through a 3-layer MLP for the final EF prediction. 
