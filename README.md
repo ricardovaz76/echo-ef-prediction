@@ -20,8 +20,18 @@ A multi-task deep learning model for left ventricle segmentation and ejection fr
 
 ## Results
 
-![Training Curves](results/trainingcurves.png)
 <p><em>Training loss and validation metrics across both training phases</em></p>
 
+![Training Curves](results/trainingcurves.png)
+
+<br>
+
+<p><em>Predicted vs actual EF values on the test set</em></p>
+
 ![Scatter Plot](results/Scatterplot.png)
+
+<br>
+
+<p><em>ROC curve for reduced EF classification — the model correctly distinguishes low vs normal EF 93.9% of the time (AUC = 0.939)</em></p>
+
 ![ROC Curve](results/ROC.png)
