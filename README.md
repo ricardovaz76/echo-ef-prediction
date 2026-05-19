@@ -13,8 +13,10 @@ A multi-task deep learning model for left ventricle segmentation and ejection fr
 
 ## Demo
 
-![A4C Segmentation](results/a4c_video.gif)
-![PSAX Segmentation](results/psax_video.gif)
+<p>
+  <img src="results/a4c.gif" width="300" alt="A4C Segmentation"/>
+  <img src="results/psax.gif" width="300" alt="PSAX Segmentation"/>
+</p>
 
 ## Results
 
