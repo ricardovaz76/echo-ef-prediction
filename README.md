@@ -32,6 +32,6 @@ A multi-task deep learning model for left ventricle segmentation and ejection fr
 
 <br>
 
-<p><em>ROC curve for reduced EF classification — the model correctly distinguishes low vs normal EF 93.9% of the time (AUC = 0.939)</em></p>
+<p><em>ROC curve for reduced EF classification: the model correctly distinguishes low vs normal EF 93.9% of the time (AUC = 0.939)</em></p>
 
 ![ROC Curve](results/ROC.png)
