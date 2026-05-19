@@ -22,7 +22,7 @@ A multi-task deep learning model for left ventricle segmentation and ejection fr
 
 <p><em>Training loss and validation metrics across both training phases</em></p>
 
-<img src="results/trainingcurves.png" width="700" alt="Training Curves"/>
+![Training Curves](results/trainingcurves.png)
 
 <br>
 
