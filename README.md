@@ -53,3 +53,10 @@ pip install torch torchvision numpy pandas matplotlib scikit-learn opencv-python
 ```
 
 > **Note:** This project was developed in Google Colab. The simplest way to run it is to open the notebook directly in Colab and mount your Google Drive with the dataset.
+
+## How to Run
+
+1. Open the notebook in Google Colab
+2. Mount your Google Drive and update the dataset paths in the Configuration cell at the top of the notebook
+3. Ensure the EchoNet Pediatric dataset is accessible at the specified paths
+4. Run all cells in order
