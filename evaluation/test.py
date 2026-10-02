@@ -8,43 +8,16 @@
 #   python -m evaluation.test --dataset-root path/to/dataset --processed-root path/to/processed \
 #       --checkpoint checkpoints/best_model_mae.pth
 
-import argparse
 import os
 
 import torch
 
+from cli import parse_test_args
 from data import build_dataloaders, build_datasets
 from models import build_model
 from .evaluate import evaluate, print_metrics
 from .plots import plot_bland_altman, plot_regression, plot_roc, plot_segmentation_overlays
 from .video import render_sample_videos
-
-
-def parse_args(argv=None):
-    parser = argparse.ArgumentParser(description="Evaluate the EchoNet EF model on the test split")
-    parser.add_argument("--dataset-root", required=True,
-                        help="Path to dataset: the folder containing the A4C/ and PSAX/ folders")
-    parser.add_argument("--processed-root", required=True,
-                        help="Folder to save the extracted frames (.npy) to")
-    parser.add_argument("--checkpoint", required=True,
-                        help="Path to the model checkpoint (.pth)")
-    parser.add_argument("--output-dir", default="outputs/test",
-                        help="Folder to save the plots to")
-    parser.add_argument("--skip-extraction", action="store_true",
-                        help="Reuse frames already extracted to --processed-root")
-    parser.add_argument("--num-workers", type=int, default=4,
-                        help="DataLoader worker processes")
-    parser.add_argument("--num-overlays", type=int, default=10,
-                        help="Number of segmentation overlay figures to save")
-    parser.add_argument("--video", action="store_true",
-                        help="Also save A4C and PSAX segmentation videos for one test sample")
-    parser.add_argument("--video-seed", type=int, default=None,
-                        help="Seed for picking the video sample, random if not set")
-    parser.add_argument("--ef-mean", type=float, default=None,
-                        help="Train set EF mean, for checkpoints that don't store it")
-    parser.add_argument("--ef-std", type=float, default=None,
-                        help="Train set EF std, for checkpoints that don't store it")
-    return parser.parse_args(argv)
 
 
 # The model predicts normalized EF, so the train set stats are needed to convert back to EF %
@@ -62,7 +35,7 @@ def resolve_ef_stats(args, checkpoint):
 
 
 def main(argv=None):
-    args = parse_args(argv)
+    args = parse_test_args(argv)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("CUDA available:", torch.cuda.is_available())
