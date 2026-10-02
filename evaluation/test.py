@@ -1,7 +1,8 @@
 # Evaluates a trained EchoNetModel checkpoint on the test split
 #
 # Prints the test metrics and saves the segmentation overlays, regression,
-# ROC, and Bland-Altman plots to --output-dir
+# ROC, and Bland-Altman plots to --output-dir. With --video, also saves the
+# A4C and PSAX segmentation videos for one test sample.
 #
 # Run from the repo root:
 #   python -m evaluation.test --dataset-root path/to/dataset --processed-root path/to/processed \
@@ -16,6 +17,7 @@ from data import build_dataloaders, build_datasets
 from models import build_model
 from .evaluate import evaluate, print_metrics
 from .plots import plot_bland_altman, plot_regression, plot_roc, plot_segmentation_overlays
+from .video import render_sample_videos
 
 
 def parse_args(argv=None):
@@ -34,6 +36,10 @@ def parse_args(argv=None):
                         help="DataLoader worker processes")
     parser.add_argument("--num-overlays", type=int, default=10,
                         help="Number of segmentation overlay figures to save")
+    parser.add_argument("--video", action="store_true",
+                        help="Also save A4C and PSAX segmentation videos for one test sample")
+    parser.add_argument("--video-seed", type=int, default=None,
+                        help="Seed for picking the video sample, random if not set")
     parser.add_argument("--ef-mean", type=float, default=None,
                         help="Train set EF mean, for checkpoints that don't store it")
     parser.add_argument("--ef-std", type=float, default=None,
@@ -102,6 +108,14 @@ def main(argv=None):
 
     print(f"ROC AUC (EF < 50):   {roc_auc:.4f}")
     print(f"Saved plots to {args.output_dir}")
+
+    # -------------------------
+    # segmentation videos
+    # -------------------------
+    if args.video:
+        video_dir = os.path.join(args.output_dir, "videos")
+        render_sample_videos(model, test_dataset, device, ef_mean, ef_std, video_dir, seed=args.video_seed)
+        print(f"Saved segmentation videos to {video_dir}")
 
 
 if __name__ == "__main__":
