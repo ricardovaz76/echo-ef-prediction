@@ -222,3 +222,6 @@ __marimo__/
 
 # Windows download metadata (copying files into WSL)
 *:Zone.Identifier
+
+# Evaluation outputs (plots from evaluation/test.py)
+outputs/
