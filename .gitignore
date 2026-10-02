@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Model weights
+*.pth
+
+# Windows download metadata (copying files into WSL)
+*:Zone.Identifier
