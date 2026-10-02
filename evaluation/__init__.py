@@ -6,3 +6,4 @@ from .metrics import (
     get_frame,
 )
 from .evaluate import evaluate, print_metrics
+from .plots import plot_segmentation_overlays, plot_regression, plot_roc, plot_bland_altman
