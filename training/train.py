@@ -7,12 +7,12 @@
 # Run from the repo root:
 #   python -m training.train --dataset-root path/to/dataset --processed-root path/to/processed
 
-import argparse
 import os
 
 import matplotlib.pyplot as plt
 import torch
 
+from cli import parse_train_args
 from data import build_dataloaders, build_datasets, compute_ef_stats
 from models import build_model
 from .engine import train_one_epoch, validate
@@ -29,21 +29,6 @@ MAE_PATIENCE    = 7
 SCHED_PATIENCE  = 3
 SCHED_FACTOR    = 0.5
 SCHED_MIN_LR    = 1e-6
-
-
-def parse_args(argv=None):
-    parser = argparse.ArgumentParser(description="Train the EchoNet EF model")
-    parser.add_argument("--dataset-root", required=True,
-                        help="Path to dataset: the folder containing the A4C/ and PSAX/ folders")
-    parser.add_argument("--processed-root", required=True,
-                        help="Folder to save the extracted frames (.npy) to")
-    parser.add_argument("--output-dir", default="checkpoints",
-                        help="Folder to save checkpoints and training curves to")
-    parser.add_argument("--skip-extraction", action="store_true",
-                        help="Reuse frames already extracted to --processed-root")
-    parser.add_argument("--num-workers", type=int, default=4,
-                        help="DataLoader worker processes")
-    return parser.parse_args(argv)
 
 
 def plot_training_curves(train_losses, val_maes, val_dices, phase2_start, path):
@@ -79,7 +64,7 @@ def plot_training_curves(train_losses, val_maes, val_dices, phase2_start, path):
 
 
 def main(argv=None):
-    args = parse_args(argv)
+    args = parse_train_args(argv)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("CUDA available:", torch.cuda.is_available())
