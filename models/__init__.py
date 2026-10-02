@@ -7,3 +7,4 @@ from .components import (
     RegressionHead,
 )
 from .echonet import EchoNetModel
+from .build import build_model
