@@ -14,14 +14,12 @@ import matplotlib.pyplot as plt
 import torch
 
 from data import build_dataloaders, build_datasets, compute_ef_stats
-from models import EchoNetModel, RegressionHead, ResNetEncoder, UNet, UNetDecoder, replace_bn_with_gn
+from models import build_model
 from .engine import train_one_epoch, validate
 
 
 # Hyperparameters
-FEATURE_DIM = 256
-
-LR_P1         = 1e-4
+LR_P1        = 1e-4
 NUM_EPOCHS_P1 = 50
 DICE_PATIENCE = 5
 
@@ -46,17 +44,6 @@ def parse_args(argv=None):
     parser.add_argument("--num-workers", type=int, default=4,
                         help="DataLoader worker processes")
     return parser.parse_args(argv)
-
-
-def build_model(device):
-    encoder    = ResNetEncoder()
-    replace_bn_with_gn(encoder)
-    decoder    = UNetDecoder()
-    seg_model  = UNet(encoder, decoder)
-    ef_head    = RegressionHead(in_channels=2 * FEATURE_DIM + 2)
-
-    model = EchoNetModel(seg_model=seg_model, ef_head=ef_head, feature_dim=FEATURE_DIM)
-    return model.to(device)
 
 
 def plot_training_curves(train_losses, val_maes, val_dices, phase2_start, path):
