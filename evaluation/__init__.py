@@ -5,3 +5,4 @@ from .metrics import (
     dice_over_valid_frames,
     get_frame,
 )
+from .evaluate import evaluate, print_metrics
