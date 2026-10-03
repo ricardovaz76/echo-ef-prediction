@@ -63,14 +63,14 @@ class EchoDataset(Dataset):
         # =========================================================
         base_a4c = a4c_fname.replace(".avi", "")
         a4c = np.load(f"{self.a4c_dir}/{base_a4c}.npy")
-        a4c = torch.tensor(a4c, dtype=torch.float32).unsqueeze(1)  # (T,1,H,W)
+        a4c = (torch.tensor(a4c, dtype=torch.float32) / 255.0).unsqueeze(1)  # (T,1,H,W), uint8 -> [0, 1]
 
         # =========================================================
         # GRAB PSAX VIDEO
         # =========================================================
         base_psax = psax_fname.replace(".avi", "")
         psax = np.load(f"{self.psax_dir}/{base_psax}.npy")
-        psax = torch.tensor(psax, dtype=torch.float32).unsqueeze(1)  # (T,1,H,W)
+        psax = (torch.tensor(psax, dtype=torch.float32) / 255.0).unsqueeze(1)  # (T,1,H,W), uint8 -> [0, 1]
 
         # =========================================================
         # BUILD FULL SEGMENTATION VIDEOS
