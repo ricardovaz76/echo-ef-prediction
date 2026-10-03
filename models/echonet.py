@@ -48,11 +48,12 @@ class EchoNetModel(nn.Module):
         # -------------------------
         # Captures short-range motion (is the ventricle contracting or relaxing right now)
         # that a single frame can't show. Two kernel-3 convs see ~2 frames on each side.
+        # No ReLU after the last conv: its output is added back as a residual, so it
+        # needs to be able to lower features as well as raise them
         self.temporal_conv = nn.Sequential(
             nn.Conv1d(feature_dim, feature_dim, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.Conv1d(feature_dim, feature_dim, kernel_size=3, padding=1),
-            nn.ReLU()
+            nn.Conv1d(feature_dim, feature_dim, kernel_size=3, padding=1)
         )
 
     # =========================================================
