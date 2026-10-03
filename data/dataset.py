@@ -71,9 +71,16 @@ class EchoDataset(Dataset):
     #   video:  (T, 1, H, W) frames normalized to [0, 1]
     #   seg:    (T, 1, H, W) ground truth masks on the annotated frames, zeros elsewhere
     #   ed, es: clip positions of the ED and ES frames
+    #   n_valid: number of real frames, the rest are padding
     def _load_view(self, fname, clip_dir, mask_dict, frame_dict):
-        data = np.load(clip_path(clip_dir, fname))
-        frames, clip_src = data["frames"], data["clip_src"]
+        path = clip_path(clip_dir, fname)
+        data = np.load(path)
+
+        # Clips saved before n_valid was added can't tell real frames from padding
+        if "n_valid" not in data.files:
+            raise KeyError(f"{path} has no n_valid, re-run extraction without --skip-extraction")
+
+        frames, clip_src, n_valid = data["frames"], data["clip_src"], int(data["n_valid"])
 
         video = (torch.tensor(frames, dtype=torch.float32) / 255.0).unsqueeze(1)   # uint8 -> [0, 1]
 
@@ -96,17 +103,17 @@ class EchoDataset(Dataset):
         ed = 0 if ed is None else int(np.flatnonzero(clip_src == ed)[0])
         es = 0 if es is None else int(np.flatnonzero(clip_src == es)[0])
 
-        return video, torch.from_numpy(seg), ed, es
+        return video, torch.from_numpy(seg), ed, es, n_valid
 
     def __getitem__(self, idx):
 
         # grab prebuilt sample pair
         a4c_fname, psax_fname, ef_val = self.samples[idx]
 
-        a4c, seg_a4c, ed_a4c, es_a4c = self._load_view(
+        a4c, seg_a4c, ed_a4c, es_a4c, valid_a4c = self._load_view(
             a4c_fname, self.a4c_dir, self.mask_dict_a4c, self.frame_dict_a4c
         )
-        psax, seg_psax, ed_psax, es_psax = self._load_view(
+        psax, seg_psax, ed_psax, es_psax, valid_psax = self._load_view(
             psax_fname, self.psax_dir, self.mask_dict_psax, self.frame_dict_psax
         )
 
@@ -128,4 +135,8 @@ class EchoDataset(Dataset):
             "es_a4c": es_a4c,
             "ed_psax": ed_psax,
             "es_psax": es_psax,
+
+            # number of real frames, the rest of the clip is padding
+            "valid_a4c": valid_a4c,
+            "valid_psax": valid_psax,
         }

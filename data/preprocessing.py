@@ -67,8 +67,9 @@ def resample_frames(frames, fps, target_fps=TARGET_FPS):
 #
 # frames: all original frames (T, H, W), ed/es: original 0-based frame indices
 #
-# Returns the clip (clip_length, H, W) and clip_src, the original frame index of
-# each clip frame, or None if ED and ES are too far apart to fit in one clip
+# Returns the clip (clip_length, H, W), clip_src, the original frame index of each
+# clip frame, and n_valid, the number of real (unpadded) frames, or None if ED and
+# ES are too far apart to fit in one clip
 def build_training_clip(frames, fps, ed, es, clip_length=CLIP_LENGTH):
     rs_frames, src_idx = resample_frames(frames, fps)
     rs_frames, src_idx = rs_frames.copy(), src_idx.copy()
@@ -110,8 +111,9 @@ def clip_path(save_dir, fname):
 # Saves the training clip of every video in a view so training can load clips
 # directly instead of decoding videos every epoch
 #
-# Each .npz holds frames (clip_length, 112, 112) uint8 and clip_src, the original
-# frame index of each clip frame, which EchoDataset uses to place the masks.
+# Each .npz holds frames (clip_length, 112, 112) uint8, clip_src, the original
+# frame index of each clip frame, which EchoDataset uses to place the masks, and
+# n_valid, the number of real frames before any padding.
 # Videos without both an ED and ES tracing, or with ED and ES too far apart to
 # fit in one clip, are not saved.
 def preprocess_view(df, video_dir, save_dir, patient_ids, mask_dict):
@@ -138,8 +140,8 @@ def preprocess_view(df, video_dir, save_dir, patient_ids, mask_dict):
             skipped += 1
             continue
 
-        clip_frames, clip_src = clip
-        np.savez(clip_path(save_dir, fname), frames=clip_frames, clip_src=clip_src)
+        clip_frames, clip_src, n_valid = clip
+        np.savez(clip_path(save_dir, fname), frames=clip_frames, clip_src=clip_src, n_valid=n_valid)
         saved += 1
 
     print(f"{save_dir}: saved {saved} clips, skipped {skipped} videos")
