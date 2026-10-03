@@ -3,6 +3,8 @@ import os
 import cv2
 import numpy as np
 
+from .clips import CLIP_LENGTH, clip_start, extract_clip, fits_in_clip, nearest_position
+
 
 # Videos are recorded anywhere from 25 to 135 FPS, so they are resampled to one
 # frame rate so a fixed number of frames always covers the same amount of time
@@ -53,6 +55,50 @@ def resample_frames(frames, fps, target_fps=TARGET_FPS):
     src_idx = np.clip(src_idx, 0, T - 1)
 
     return frames[src_idx], src_idx
+
+
+# Builds the training clip for one video from its annotated ED and ES frames
+#
+# Resampling can drop the exact annotated frames, which would leave their masks on
+# a neighbouring frame that doesn't match the image. So the closest resampled frame
+# is swapped for the exact annotated frame (shifting its timing by at most half a
+# resampled step) to keep every mask aligned with the image it was traced on.
+#
+# frames: all original frames (T, H, W), ed/es: original 0-based frame indices
+#
+# Returns the clip (clip_length, H, W) and clip_src, the original frame index of
+# each clip frame, or None if ED and ES are too far apart to fit in one clip
+def build_training_clip(frames, fps, ed, es, clip_length=CLIP_LENGTH):
+    rs_frames, src_idx = resample_frames(frames, fps)
+    rs_frames, src_idx = rs_frames.copy(), src_idx.copy()
+
+    # Swap in the exact annotated frames, earliest first so they stay in time order
+    first, second = sorted((ed, es))
+    pos_first = nearest_position(src_idx, first)
+    pos_second = nearest_position(src_idx, second)
+
+    # At high frame rates both can map to the same resampled frame, so the later
+    # one takes the next slot (or the earlier one the previous slot at the end)
+    if pos_second == pos_first:
+        if pos_first + 1 < len(src_idx):
+            pos_second = pos_first + 1
+        elif pos_first > 0:
+            pos_first = pos_first - 1
+        else:
+            return None
+
+    for pos, frame in ((pos_first, first), (pos_second, second)):
+        src_idx[pos] = frame
+        rs_frames[pos] = frames[frame]
+
+    ed_pos = pos_first if ed == first else pos_second
+    es_pos = pos_second if ed == first else pos_first
+
+    if not fits_in_clip(ed_pos, es_pos, clip_length):
+        return None
+
+    start = clip_start(ed_pos, es_pos, len(src_idx), clip_length)
+    return extract_clip(rs_frames, src_idx, start, clip_length)
 
 
 # Saves frames into save_path to train without needing to extract frames for every epoch
