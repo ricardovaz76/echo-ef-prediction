@@ -101,11 +101,10 @@ class EchoNetModel(nn.Module):
         # approximated from the predicted mask areas. Detached so the proxy can't pull
         # the segmentation toward whatever makes EF easier instead of accurate masks.
         #
-        # NOTE: this sums raw logits rather than sigmoid probabilities, so it isn't a
-        # true pixel area. The background logits are strongly negative, which makes these
-        # sums large negative numbers and the "== 0" filter below effectively never triggers.
-        a4c_areas  = seg_a4c.detach().squeeze(2).sum(dim=[-1, -2])     # (B, T_a)
-        psax_areas = seg_psax.detach().squeeze(2).sum(dim=[-1, -2])    # (B, T_p)
+        # The decoder outputs logits, so sigmoid turns them into per-pixel probabilities
+        # whose sum is the soft mask area
+        a4c_areas  = torch.sigmoid(seg_a4c.detach()).squeeze(2).sum(dim=[-1, -2])     # (B, T_a)
+        psax_areas = torch.sigmoid(seg_psax.detach()).squeeze(2).sum(dim=[-1, -2])    # (B, T_p)
 
         # ED (end-diastole, ventricle fully filled) = largest area
         # ES (end-systole, ventricle fully contracted) = smallest non-zero area
@@ -116,9 +115,6 @@ class EchoNetModel(nn.Module):
         psax_es_area = psax_areas.masked_fill(psax_areas == 0, float('inf')).min(dim=1).values
 
         # 2D version of EF = 1 - ESV / EDV, using areas as a stand-in for volumes
-        #
-        # NOTE: with the negative logit sums above, ES / ED is > 1, so this clamps to 0
-        # for typical inputs and the proxy carries little to no signal.
         ef_proxy_a4c  = (1 - (a4c_es_area  / (a4c_ed_area  + 1e-6))).clamp(0, 1)
         ef_proxy_psax = (1 - (psax_es_area / (psax_ed_area + 1e-6))).clamp(0, 1)
 
