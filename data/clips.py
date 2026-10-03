@@ -37,15 +37,16 @@ def clip_start(ed_pos, es_pos, n_frames, clip_length=CLIP_LENGTH):
 # Videos shorter than clip_length are padded by repeating their last frame, so
 # every clip has the same length
 #
-# Returns the clip (clip_length, H, W) and clip_src, the original frame index of
-# each clip frame
+# Returns the clip (clip_length, H, W), clip_src, the original frame index of
+# each clip frame, and n_valid, how many frames are real before the padding
 def extract_clip(frames, src_idx, start, clip_length=CLIP_LENGTH):
     clip = frames[start:start + clip_length]
     clip_src = src_idx[start:start + clip_length]
+    n_valid = len(clip)
 
-    n_pad = clip_length - len(clip)
+    n_pad = clip_length - n_valid
     if n_pad > 0:
         clip = np.concatenate([clip, np.repeat(clip[-1:], n_pad, axis=0)])
         clip_src = np.concatenate([clip_src, np.repeat(clip_src[-1:], n_pad)])
 
-    return clip, clip_src
+    return clip, clip_src, n_valid
