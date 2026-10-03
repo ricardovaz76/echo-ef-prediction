@@ -4,6 +4,15 @@ import torch.nn as nn
 from .components import TemporalTransformer
 
 
+# (B, T) bool mask that is True for padded frames, the positions at or past each clip's
+# number of real frames. None when no frame counts are given (every frame is real).
+def padding_mask(valid, T):
+    if valid is None:
+        return None
+    positions = torch.arange(T, device=valid.device)
+    return positions.unsqueeze(0) >= valid.unsqueeze(1)
+
+
 # Dual-view multi-task model
 #
 # Predicts ejection fraction from an A4C and a PSAX video of the same visit.
@@ -51,7 +60,9 @@ class EchoNetModel(nn.Module):
     # =========================================================
     # a4c: (B, T_a, 1, H, W), psax: (B, T_p, 1, H, W)
     # The views can have different frame counts since they are separate recordings
-    def forward(self, a4c, psax):
+    # valid_a4c, valid_psax: (B,) number of real frames in each clip, the rest is
+    # padding; None if every frame is real
+    def forward(self, a4c, psax, valid_a4c=None, valid_psax=None):
 
         B, T_a, C, H, W = a4c.shape
         _, T_p, _, _, _ = psax.shape
@@ -122,8 +133,8 @@ class EchoNetModel(nn.Module):
         # global temporal context
         # -----------------------------
         # Summarizes each video into a single vector that reflects the full cardiac cycle
-        a4c_feat  = self.temporal_transformer(feat_a4c)    # (B, 256)
-        psax_feat = self.temporal_transformer(feat_psax)   # (B, 256)
+        a4c_feat  = self.temporal_transformer(feat_a4c,  padding_mask(valid_a4c,  T_a))   # (B, 256)
+        psax_feat = self.temporal_transformer(feat_psax, padding_mask(valid_psax, T_p))   # (B, 256)
 
         # -------------------------
         # regression

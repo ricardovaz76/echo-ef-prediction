@@ -24,17 +24,22 @@ class TemporalTransformer(nn.Module):
 
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
-        # temporal pooling after attention
-        self.pool = nn.AdaptiveAvgPool1d(1)
-
-    def forward(self, x):
-        # x: (B, T, 256)
+    # x: (B, T, 256)
+    # padding_mask: (B, T) bool, True for padded frames, or None if every frame is real
+    def forward(self, x, padding_mask=None):
         T = x.shape[1]
         if T > self.pos_embedding.shape[1]:
             raise ValueError(f"Sequence of {T} frames is longer than the positional embedding ({self.pos_embedding.shape[1]})")
 
         x = x + self.pos_embedding[:, :T]  # (B, T, 256)
-        out = self.transformer(x)          # (B, T, 256)
-        out = out.permute(0, 2, 1)         # (B, 256, T) for pooling
-        out = self.pool(out).squeeze(-1)   # (B, 256)
-        return out
+
+        # Padded frames are repeats of the last real frame, so they are hidden from
+        # attention and left out of the average to keep short videos from over-weighting it
+        out = self.transformer(x, src_key_padding_mask=padding_mask)   # (B, T, 256)
+
+        # temporal pooling: average over the real frames
+        if padding_mask is None:
+            return out.mean(dim=1)                                      # (B, 256)
+
+        keep = (~padding_mask).unsqueeze(-1).to(out.dtype)              # (B, T, 1)
+        return (out * keep).sum(dim=1) / keep.sum(dim=1).clamp(min=1)   # (B, 256)

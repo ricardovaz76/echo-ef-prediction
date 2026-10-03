@@ -36,6 +36,10 @@ def evaluate(model, loader, device, ef_mean, ef_std, num_visual_samples=2):
         a4c  = batch["a4c"].to(device)
         psax = batch["psax"].to(device)
 
+        # number of real frames per clip, the rest is padding
+        valid_a4c  = batch["valid_a4c"].to(device)
+        valid_psax = batch["valid_psax"].to(device)
+
         y_reg      = batch["ef"].to(device)
         y_seg_a4c  = batch["seg_a4c"].to(device)
         y_seg_psax = batch["seg_psax"].to(device)
@@ -54,7 +58,7 @@ def evaluate(model, loader, device, ef_mean, ef_std, num_visual_samples=2):
         # -------------------------
         # FORWARD
         # -------------------------
-        pred_reg, (seg_a4c_frames, seg_psax_frames) = model(a4c, psax)
+        pred_reg, (seg_a4c_frames, seg_psax_frames) = model(a4c, psax, valid_a4c, valid_psax)
 
         # -------------------------
         # REGRESSION METRICS
