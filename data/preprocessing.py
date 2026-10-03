@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 
 from .clips import CLIP_LENGTH, clip_start, extract_clip, fits_in_clip, nearest_position
+from .masks import build_frame_dict, get_ed_es_by_area
 
 
 # Videos are recorded anywhere from 25 to 135 FPS, so they are resampled to one
@@ -101,28 +102,44 @@ def build_training_clip(frames, fps, ed, es, clip_length=CLIP_LENGTH):
     return extract_clip(rs_frames, src_idx, start, clip_length)
 
 
-# Saves frames into save_path to train without needing to extract frames for every epoch
-def extract_and_save(video_path, save_path):
-    frames, _ = load_video_frames(video_path)
-    np.save(save_path, frames)
+# Where a video's saved clip lives, shared by extraction and EchoDataset
+def clip_path(save_dir, fname):
+    return os.path.join(save_dir, fname.replace(".avi", ".npz"))
 
 
-# Creates a save path for each video before extraction
-def preprocess_view(df, video_dir, save_dir, patient_ids):
+# Saves the training clip of every video in a view so training can load clips
+# directly instead of decoding videos every epoch
+#
+# Each .npz holds frames (clip_length, 112, 112) uint8 and clip_src, the original
+# frame index of each clip frame, which EchoDataset uses to place the masks.
+# Videos without both an ED and ES tracing, or with ED and ES too far apart to
+# fit in one clip, are not saved.
+def preprocess_view(df, video_dir, save_dir, patient_ids, mask_dict):
     os.makedirs(save_dir, exist_ok=True)
 
+    frame_dict = build_frame_dict(mask_dict)
     fname_to_pid = df.drop_duplicates(subset="FileName").set_index("FileName")["patient_id"].to_dict()
 
+    saved = skipped = 0
     for fname in df["FileName"].unique():
 
         if fname_to_pid[fname] not in patient_ids:
             continue
 
-        video_path = os.path.join(video_dir, fname)
+        frames, fps = load_video_frames(os.path.join(video_dir, fname))
 
-        save_path = os.path.join(
-            save_dir,
-            fname.replace(".avi", ".npy")
-        )
+        ed, es = get_ed_es_by_area(mask_dict, fname, frame_dict[fname], max_frame=len(frames))
+        if ed is None or ed == es:
+            skipped += 1
+            continue
 
-        extract_and_save(video_path, save_path)
+        clip = build_training_clip(frames, fps, ed, es)
+        if clip is None:
+            skipped += 1
+            continue
+
+        clip_frames, clip_src = clip
+        np.savez(clip_path(save_dir, fname), frames=clip_frames, clip_src=clip_src)
+        saved += 1
+
+    print(f"{save_dir}: saved {saved} clips, skipped {skipped} videos")

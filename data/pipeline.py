@@ -57,10 +57,10 @@ def build_datasets(dataset_root, processed_root, extract_frames=True):
     mask_dict_a4c = build_mask_dict(clean_frames(df_a4c_volume))
     mask_dict_psax = build_mask_dict(clean_frames(df_psax_volume))
 
-    # Frame extraction
+    # Clip extraction
     if extract_frames:
-        preprocess_view(df_a4c, os.path.join(a4c_dir, "Videos"), processed_a4c, common_patients_all)
-        preprocess_view(df_psax, os.path.join(psax_dir, "Videos"), processed_psax, common_patients_all)
+        preprocess_view(df_a4c, os.path.join(a4c_dir, "Videos"), processed_a4c, common_patients_all, mask_dict_a4c)
+        preprocess_view(df_psax, os.path.join(psax_dir, "Videos"), processed_psax, common_patients_all, mask_dict_psax)
 
     train_dataset = EchoDataset(train_a4c_volume, train_psax_volume, processed_a4c, processed_psax, train_patients, mask_dict_a4c, mask_dict_psax)
     val_dataset   = EchoDataset(val_a4c_volume, val_psax_volume, processed_a4c, processed_psax, val_patients, mask_dict_a4c, mask_dict_psax)
