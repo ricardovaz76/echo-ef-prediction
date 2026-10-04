@@ -113,7 +113,11 @@ def render_sample_videos(model, dataset, device, ef_mean, ef_std, out_dir, idx=N
     a4c = sample["a4c"].unsqueeze(0).to(device)
     psax = sample["psax"].unsqueeze(0).to(device)
 
-    pred_reg, (seg_a4c, seg_psax) = model(a4c, psax)
+    # number of real frames per clip, the rest is padding
+    valid_a4c = torch.tensor([sample["valid_a4c"]], device=device)
+    valid_psax = torch.tensor([sample["valid_psax"]], device=device)
+
+    pred_reg, (seg_a4c, seg_psax) = model(a4c, psax, valid_a4c, valid_psax)
 
     i = 0
 

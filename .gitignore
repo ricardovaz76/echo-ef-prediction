@@ -225,3 +225,4 @@ __marimo__/
 
 # Evaluation outputs (plots from evaluation/test.py)
 outputs/
+checkpoints/

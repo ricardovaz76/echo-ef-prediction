@@ -21,6 +21,10 @@ def train_one_epoch(model, loader, optimizer, device, ef_mean, ef_std, seg_enabl
         a4c  = batch["a4c"].to(device)
         psax = batch["psax"].to(device)
 
+        # number of real frames per clip, the rest is padding
+        valid_a4c  = batch["valid_a4c"].to(device)
+        valid_psax = batch["valid_psax"].to(device)
+
         # -------------------
         # Normalize EF
         # -------------------
@@ -38,7 +42,7 @@ def train_one_epoch(model, loader, optimizer, device, ef_mean, ef_std, seg_enabl
         # -------------------
         # Forward Pass
         # -------------------
-        pred_reg, (seg_a4c_frames, seg_psax_frames) = model(a4c, psax)
+        pred_reg, (seg_a4c_frames, seg_psax_frames) = model(a4c, psax, valid_a4c, valid_psax)
 
         # -------------------
         # sample ED/ES frames
@@ -108,6 +112,10 @@ def validate(model, loader, device, ef_mean, ef_std):
         a4c  = batch["a4c"].to(device)
         psax = batch["psax"].to(device)
 
+        # number of real frames per clip, the rest is padding
+        valid_a4c  = batch["valid_a4c"].to(device)
+        valid_psax = batch["valid_psax"].to(device)
+
         y_reg      = batch["ef"].to(device)
         y_seg_a4c  = batch["seg_a4c"].to(device)
         y_seg_psax = batch["seg_psax"].to(device)
@@ -115,7 +123,7 @@ def validate(model, loader, device, ef_mean, ef_std):
         # -------------------
         # Forward Pass
         # -------------------
-        pred_reg, (seg_a4c_frames, seg_psax_frames) = model(a4c, psax)
+        pred_reg, (seg_a4c_frames, seg_psax_frames) = model(a4c, psax, valid_a4c, valid_psax)
 
         # -------------------
         # MAE: denormalize pred only

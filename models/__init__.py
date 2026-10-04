@@ -3,6 +3,7 @@ from .components import (
     replace_bn_with_gn,
     UNetDecoder,
     UNet,
+    TemporalConv,
     TemporalTransformer,
     RegressionHead,
 )
