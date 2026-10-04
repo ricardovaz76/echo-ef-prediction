@@ -18,19 +18,6 @@ from models import build_model
 from .engine import train_one_epoch, validate
 
 
-# Hyperparameters
-LR_P1        = 1e-4
-NUM_EPOCHS_P1 = 50
-DICE_PATIENCE = 5
-
-LR_P2           = 5e-5
-NUM_EPOCHS_P2   = 50
-MAE_PATIENCE    = 7
-SCHED_PATIENCE  = 3
-SCHED_FACTOR    = 0.5
-SCHED_MIN_LR    = 1e-6
-
-
 def plot_training_curves(train_losses, val_maes, val_dices, phase2_start, path):
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(16, 4))
 
@@ -112,13 +99,13 @@ def main(argv=None):
     # Adam optimizer for Phase 1 training
     optimizer_p1 = torch.optim.Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
-        lr=LR_P1,
+        lr=args.lr_p1,
     )
 
     best_val_dice = 0.0
     dice_counter  = 0
 
-    for epoch in range(NUM_EPOCHS_P1):
+    for epoch in range(args.epochs_p1):
 
         # Train the epoch
         loss, reg_loss, seg_loss = train_one_epoch(
@@ -152,7 +139,7 @@ def main(argv=None):
             print(f"    Saved best dice model (dice={best_val_dice:.4f})")
         else:
             dice_counter += 1
-            if dice_counter >= DICE_PATIENCE:
+            if dice_counter >= args.dice_patience:
                 print(f"  Early stopping phase 1 at epoch {epoch+1}")
                 break
 
@@ -185,7 +172,7 @@ def main(argv=None):
     # Fresh Adam optimizer for Phase 2 MAE fine-tuning (Excludes frozen segmentation)
     optimizer_p2 = torch.optim.Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
-        lr=LR_P2,
+        lr=args.lr_p2,
     )
 
     # Scheduler:
@@ -194,15 +181,15 @@ def main(argv=None):
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer_p2,
         mode="min",
-        factor=SCHED_FACTOR,
-        patience=SCHED_PATIENCE,
-        min_lr=SCHED_MIN_LR
+        factor=args.sched_factor,
+        patience=args.sched_patience,
+        min_lr=args.sched_min_lr
     )
 
     best_val_mae = float("inf")
     mae_counter  = 0
 
-    for epoch in range(NUM_EPOCHS_P2):
+    for epoch in range(args.epochs_p2):
 
         # Train the epoch
         loss, reg_loss, seg_loss = train_one_epoch(
@@ -241,7 +228,7 @@ def main(argv=None):
             print(f"    Saved best MAE model (mae={best_val_mae:.4f})")
         else:
             mae_counter += 1
-            if mae_counter >= MAE_PATIENCE:
+            if mae_counter >= args.mae_patience:
                 print(f"  Early stopping phase 2 at epoch {epoch+1}")
                 break
 
