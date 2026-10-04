@@ -60,11 +60,14 @@ def main(argv=None):
     dice_ckpt_path = os.path.join(args.output_dir, "best_model_dice.pth")
     mae_ckpt_path  = os.path.join(args.output_dir, "best_model_mae.pth")
 
+    # Clip settings, saved in every checkpoint so testing and inference use the same ones
+    config = {"clip_length": args.clip_length, "target_fps": args.target_fps}
+
     # -------------------------
     # data
     # -------------------------
     train_dataset, val_dataset, test_dataset = build_datasets(
-        args.dataset_root, args.processed_root, extract_frames=not args.skip_extraction
+        args.dataset_root, args.processed_root, extract_frames=not args.skip_extraction, **config
     )
     train_loader, val_loader, _ = build_dataloaders(
         train_dataset, val_dataset, test_dataset, num_workers=args.num_workers
@@ -80,7 +83,7 @@ def main(argv=None):
     # -------------------------
     # model
     # -------------------------
-    model = build_model(device)
+    model = build_model(device, clip_length=args.clip_length)
 
     # -------------------------
     # history
@@ -135,6 +138,7 @@ def main(argv=None):
                 "val_dice":             float(val_dice),
                 "ef_mean":              ef_mean,
                 "ef_std":               ef_std,
+                "config":               config,
             }, dice_ckpt_path)
             print(f"    Saved best dice model (dice={best_val_dice:.4f})")
         else:
@@ -224,6 +228,7 @@ def main(argv=None):
                 "val_dice":             float(val_dice),
                 "ef_mean":              ef_mean,
                 "ef_std":               ef_std,
+                "config":               config,
             }, mae_ckpt_path)
             print(f"    Saved best MAE model (mae={best_val_mae:.4f})")
         else:

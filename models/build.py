@@ -15,7 +15,10 @@ FEATURE_DIM = 256
 
 # Builds the full EchoNetModel and moves it to device
 # Shared by training, testing, and inference so they all build the same architecture
-def build_model(device):
+#
+# clip_length: frames per clip, sets how many positions the transformer's
+#              positional embedding covers (CLIP_LENGTH in data/clips.py)
+def build_model(device, clip_length=32):
     encoder    = ResNetEncoder()
     replace_bn_with_gn(encoder)
     decoder    = UNetDecoder()
@@ -23,7 +26,7 @@ def build_model(device):
     ef_head    = RegressionHead(in_channels=2 * FEATURE_DIM + 2)
 
     temporal_conv = TemporalConv(feature_dim=FEATURE_DIM)
-    temporal_transformer = TemporalTransformer(d_model=FEATURE_DIM, nhead=8, num_layers=2)
+    temporal_transformer = TemporalTransformer(d_model=FEATURE_DIM, nhead=8, num_layers=2, max_len=clip_length)
 
     model = EchoNetModel(
         seg_model=seg_model,

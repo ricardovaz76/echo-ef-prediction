@@ -13,7 +13,7 @@ import os
 import torch
 
 from cli import parse_test_args
-from data import build_dataloaders, build_datasets
+from data import CLIP_LENGTH, TARGET_FPS, build_dataloaders, build_datasets
 from models import build_model
 from .evaluate import evaluate, print_metrics
 from .plots import plot_bland_altman, plot_regression, plot_roc, plot_segmentation_overlays
@@ -34,6 +34,12 @@ def resolve_ef_stats(args, checkpoint):
     return ef_mean, ef_std
 
 
+# Clip settings the model was trained with, so test clips are built the same way
+# Checkpoints saved before these were stored fall back to the defaults
+def resolve_clip_config(checkpoint):
+    return checkpoint.get("config", {"clip_length": CLIP_LENGTH, "target_fps": TARGET_FPS})
+
+
 def main(argv=None):
     args = parse_test_args(argv)
 
@@ -45,16 +51,17 @@ def main(argv=None):
     # -------------------------
     checkpoint = torch.load(args.checkpoint, map_location=device, weights_only=True)
     ef_mean, ef_std = resolve_ef_stats(args, checkpoint)
+    config = resolve_clip_config(checkpoint)
 
-    model = build_model(device)
+    model = build_model(device, clip_length=config["clip_length"])
     model.load_state_dict(checkpoint["model_state_dict"])
-    print(f"Loaded {args.checkpoint} (EF_MEAN: {ef_mean}, EF_STD: {ef_std})")
+    print(f"Loaded {args.checkpoint} (EF_MEAN: {ef_mean}, EF_STD: {ef_std}, clips: {config})")
 
     # -------------------------
     # data
     # -------------------------
     train_dataset, val_dataset, test_dataset = build_datasets(
-        args.dataset_root, args.processed_root, extract_frames=not args.skip_extraction
+        args.dataset_root, args.processed_root, extract_frames=not args.skip_extraction, **config
     )
     _, _, test_loader = build_dataloaders(
         train_dataset, val_dataset, test_dataset, num_workers=args.num_workers

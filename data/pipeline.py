@@ -1,5 +1,7 @@
+import json
 import os
 
+from .clips import CLIP_LENGTH
 from .dataset import EchoDataset
 from .loading import (
     TEST_SPLITS,
@@ -12,7 +14,27 @@ from .loading import (
     split_by_fold,
 )
 from .masks import build_mask_dict
-from .preprocessing import preprocess_view
+from .preprocessing import TARGET_FPS, preprocess_view
+
+
+# Records the clip settings next to the extracted clips, so clips can't be
+# reused with settings they weren't made with
+def clip_config_path(processed_root):
+    return os.path.join(processed_root, "clip_config.json")
+
+
+def check_clip_config(processed_root, clip_config):
+    path = clip_config_path(processed_root)
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"No {path}, re-run extraction without --skip-extraction")
+
+    with open(path) as f:
+        saved = json.load(f)
+    if saved != clip_config:
+        raise ValueError(
+            f"Clips in {processed_root} were extracted with {saved}, not {clip_config}. "
+            "Re-run extraction without --skip-extraction"
+        )
 
 
 # Runs the full data pipeline and returns the train/val/test datasets
@@ -21,9 +43,12 @@ from .preprocessing import preprocess_view
 # steps one at a time for inspection.
 #
 # dataset_root:   folder containing the A4C/ and PSAX/ folders
-# processed_root: folder to save the extracted frames (.npy) to
-# extract_frames: set to False to reuse frames already extracted to processed_root
-def build_datasets(dataset_root, processed_root, extract_frames=True):
+# processed_root: folder to save the extracted clips (.npz) to
+# extract_frames: set to False to reuse clips already extracted to processed_root
+# clip_length, target_fps: clip settings, must match the ones the clips were extracted with
+def build_datasets(dataset_root, processed_root, extract_frames=True, clip_length=CLIP_LENGTH, target_fps=TARGET_FPS):
+    clip_config = {"clip_length": clip_length, "target_fps": target_fps}
+
     a4c_dir  = os.path.join(dataset_root, "A4C")
     psax_dir = os.path.join(dataset_root, "PSAX")
 
@@ -59,8 +84,13 @@ def build_datasets(dataset_root, processed_root, extract_frames=True):
 
     # Clip extraction
     if extract_frames:
-        preprocess_view(df_a4c, os.path.join(a4c_dir, "Videos"), processed_a4c, common_patients_all, mask_dict_a4c)
-        preprocess_view(df_psax, os.path.join(psax_dir, "Videos"), processed_psax, common_patients_all, mask_dict_psax)
+        preprocess_view(df_a4c, os.path.join(a4c_dir, "Videos"), processed_a4c, common_patients_all, mask_dict_a4c, clip_length, target_fps)
+        preprocess_view(df_psax, os.path.join(psax_dir, "Videos"), processed_psax, common_patients_all, mask_dict_psax, clip_length, target_fps)
+
+        with open(clip_config_path(processed_root), "w") as f:
+            json.dump(clip_config, f)
+    else:
+        check_clip_config(processed_root, clip_config)
 
     train_dataset = EchoDataset(train_a4c_volume, train_psax_volume, processed_a4c, processed_psax, train_patients, mask_dict_a4c, mask_dict_psax)
     val_dataset   = EchoDataset(val_a4c_volume, val_psax_volume, processed_a4c, processed_psax, val_patients, mask_dict_a4c, mask_dict_psax)
