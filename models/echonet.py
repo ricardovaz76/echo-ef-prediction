@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
 
-from .components import TemporalTransformer
-
 
 # (B, T) bool mask that is True for padded frames, the positions at or past each clip's
 # number of real frames. None when no frame counts are given (every frame is real).
@@ -20,7 +18,7 @@ def padding_mask(valid, T):
 # left ventricle is, which gives the EF prediction more meaningful features
 # than learning from EF labels alone.
 class EchoNetModel(nn.Module):
-    def __init__(self, seg_model, ef_head, feature_dim):
+    def __init__(self, seg_model, ef_head, temporal_conv, temporal_transformer):
         super().__init__()
 
         # -------------------------
@@ -38,23 +36,13 @@ class EchoNetModel(nn.Module):
         # -------------------------
         # EF depends on how the heart changes over the whole cardiac cycle, so this
         # lets every frame attend to every other frame before summarizing the video
-        self.temporal_transformer = TemporalTransformer(
-            d_model=feature_dim,
-            nhead=8,
-            num_layers=2
-        )
+        self.temporal_transformer = temporal_transformer
+
         # -------------------------
         # temporal conv
         # -------------------------
-        # Captures short-range motion (is the ventricle contracting or relaxing right now)
-        # that a single frame can't show. Two kernel-3 convs see ~2 frames on each side.
-        # No ReLU after the last conv: its output is added back as a residual, so it
-        # needs to be able to lower features as well as raise them
-        self.temporal_conv = nn.Sequential(
-            nn.Conv1d(feature_dim, feature_dim, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv1d(feature_dim, feature_dim, kernel_size=3, padding=1)
-        )
+        # Short-range motion between neighbouring frames
+        self.temporal_conv = temporal_conv
 
     # =========================================================
     # FORWARD
@@ -96,14 +84,8 @@ class EchoNetModel(nn.Module):
 
         # Adds short-range motion to each frame's features. The residual keeps the
         # original frame appearance intact so the conv only has to learn the motion on top.
-        # Conv1d slides over the last dim, hence the permute to (B, 256, T) and back.
-        feat_a4c  = feat_a4c.permute(0, 2, 1)
-        feat_a4c  = feat_a4c + self.temporal_conv(feat_a4c)
-        feat_a4c  = feat_a4c.permute(0, 2, 1)
-
-        feat_psax = feat_psax.permute(0, 2, 1)
-        feat_psax = feat_psax + self.temporal_conv(feat_psax)
-        feat_psax = feat_psax.permute(0, 2, 1)
+        feat_a4c  = self.temporal_conv(feat_a4c)    # (B, T, 256)
+        feat_psax = self.temporal_conv(feat_psax)
 
         # -----------------------------
         # EF proxy signals
