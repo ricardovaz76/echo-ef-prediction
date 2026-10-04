@@ -1,4 +1,12 @@
-from .components import RegressionHead, ResNetEncoder, UNet, UNetDecoder, replace_bn_with_gn
+from .components import (
+    RegressionHead,
+    ResNetEncoder,
+    TemporalConv,
+    TemporalTransformer,
+    UNet,
+    UNetDecoder,
+    replace_bn_with_gn,
+)
 from .echonet import EchoNetModel
 
 
@@ -14,5 +22,13 @@ def build_model(device):
     seg_model  = UNet(encoder, decoder)
     ef_head    = RegressionHead(in_channels=2 * FEATURE_DIM + 2)
 
-    model = EchoNetModel(seg_model=seg_model, ef_head=ef_head, feature_dim=FEATURE_DIM)
+    temporal_conv = TemporalConv(feature_dim=FEATURE_DIM)
+    temporal_transformer = TemporalTransformer(d_model=FEATURE_DIM, nhead=8, num_layers=2)
+
+    model = EchoNetModel(
+        seg_model=seg_model,
+        ef_head=ef_head,
+        temporal_conv=temporal_conv,
+        temporal_transformer=temporal_transformer,
+    )
     return model.to(device)
