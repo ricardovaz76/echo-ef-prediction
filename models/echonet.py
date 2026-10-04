@@ -1,7 +1,14 @@
 import torch
 import torch.nn as nn
 
-from .components import TemporalTransformer
+
+# (B, T) bool mask that is True for padded frames, the positions at or past each clip's
+# number of real frames. None when no frame counts are given (every frame is real).
+def padding_mask(valid, T):
+    if valid is None:
+        return None
+    positions = torch.arange(T, device=valid.device)
+    return positions.unsqueeze(0) >= valid.unsqueeze(1)
 
 
 # Dual-view multi-task model
@@ -11,7 +18,7 @@ from .components import TemporalTransformer
 # left ventricle is, which gives the EF prediction more meaningful features
 # than learning from EF labels alone.
 class EchoNetModel(nn.Module):
-    def __init__(self, seg_model, ef_head, feature_dim):
+    def __init__(self, seg_model, ef_head, temporal_conv, temporal_transformer):
         super().__init__()
 
         # -------------------------
@@ -29,29 +36,22 @@ class EchoNetModel(nn.Module):
         # -------------------------
         # EF depends on how the heart changes over the whole cardiac cycle, so this
         # lets every frame attend to every other frame before summarizing the video
-        self.temporal_transformer = TemporalTransformer(
-            d_model=feature_dim,
-            nhead=8,
-            num_layers=2
-        )
+        self.temporal_transformer = temporal_transformer
+
         # -------------------------
         # temporal conv
         # -------------------------
-        # Captures short-range motion (is the ventricle contracting or relaxing right now)
-        # that a single frame can't show. Two kernel-3 convs see ~2 frames on each side.
-        self.temporal_conv = nn.Sequential(
-            nn.Conv1d(feature_dim, feature_dim, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv1d(feature_dim, feature_dim, kernel_size=3, padding=1),
-            nn.ReLU()
-        )
+        # Short-range motion between neighbouring frames
+        self.temporal_conv = temporal_conv
 
     # =========================================================
     # FORWARD
     # =========================================================
     # a4c: (B, T_a, 1, H, W), psax: (B, T_p, 1, H, W)
     # The views can have different frame counts since they are separate recordings
-    def forward(self, a4c, psax):
+    # valid_a4c, valid_psax: (B,) number of real frames in each clip, the rest is
+    # padding; None if every frame is real
+    def forward(self, a4c, psax, valid_a4c=None, valid_psax=None):
 
         B, T_a, C, H, W = a4c.shape
         _, T_p, _, _, _ = psax.shape
@@ -84,14 +84,8 @@ class EchoNetModel(nn.Module):
 
         # Adds short-range motion to each frame's features. The residual keeps the
         # original frame appearance intact so the conv only has to learn the motion on top.
-        # Conv1d slides over the last dim, hence the permute to (B, 256, T) and back.
-        feat_a4c  = feat_a4c.permute(0, 2, 1)
-        feat_a4c  = feat_a4c + self.temporal_conv(feat_a4c)
-        feat_a4c  = feat_a4c.permute(0, 2, 1)
-
-        feat_psax = feat_psax.permute(0, 2, 1)
-        feat_psax = feat_psax + self.temporal_conv(feat_psax)
-        feat_psax = feat_psax.permute(0, 2, 1)
+        feat_a4c  = self.temporal_conv(feat_a4c)    # (B, T, 256)
+        feat_psax = self.temporal_conv(feat_psax)
 
         # -----------------------------
         # EF proxy signals
@@ -101,11 +95,10 @@ class EchoNetModel(nn.Module):
         # approximated from the predicted mask areas. Detached so the proxy can't pull
         # the segmentation toward whatever makes EF easier instead of accurate masks.
         #
-        # NOTE: this sums raw logits rather than sigmoid probabilities, so it isn't a
-        # true pixel area. The background logits are strongly negative, which makes these
-        # sums large negative numbers and the "== 0" filter below effectively never triggers.
-        a4c_areas  = seg_a4c.detach().squeeze(2).sum(dim=[-1, -2])     # (B, T_a)
-        psax_areas = seg_psax.detach().squeeze(2).sum(dim=[-1, -2])    # (B, T_p)
+        # The decoder outputs logits, so sigmoid turns them into per-pixel probabilities
+        # whose sum is the soft mask area
+        a4c_areas  = torch.sigmoid(seg_a4c.detach()).squeeze(2).sum(dim=[-1, -2])     # (B, T_a)
+        psax_areas = torch.sigmoid(seg_psax.detach()).squeeze(2).sum(dim=[-1, -2])    # (B, T_p)
 
         # ED (end-diastole, ventricle fully filled) = largest area
         # ES (end-systole, ventricle fully contracted) = smallest non-zero area
@@ -116,9 +109,6 @@ class EchoNetModel(nn.Module):
         psax_es_area = psax_areas.masked_fill(psax_areas == 0, float('inf')).min(dim=1).values
 
         # 2D version of EF = 1 - ESV / EDV, using areas as a stand-in for volumes
-        #
-        # NOTE: with the negative logit sums above, ES / ED is > 1, so this clamps to 0
-        # for typical inputs and the proxy carries little to no signal.
         ef_proxy_a4c  = (1 - (a4c_es_area  / (a4c_ed_area  + 1e-6))).clamp(0, 1)
         ef_proxy_psax = (1 - (psax_es_area / (psax_ed_area + 1e-6))).clamp(0, 1)
 
@@ -126,8 +116,8 @@ class EchoNetModel(nn.Module):
         # global temporal context
         # -----------------------------
         # Summarizes each video into a single vector that reflects the full cardiac cycle
-        a4c_feat  = self.temporal_transformer(feat_a4c)    # (B, 256)
-        psax_feat = self.temporal_transformer(feat_psax)   # (B, 256)
+        a4c_feat  = self.temporal_transformer(feat_a4c,  padding_mask(valid_a4c,  T_a))   # (B, 256)
+        psax_feat = self.temporal_transformer(feat_psax, padding_mask(valid_psax, T_p))   # (B, 256)
 
         # -------------------------
         # regression
