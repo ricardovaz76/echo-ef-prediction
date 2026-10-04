@@ -37,7 +37,11 @@ def smooth(curve, window=SMOOTH_WINDOW):
 # Returns a list of beats as dicts with the ED and ES positions in the curve, and
 # whether the beat came from the fallback (largest and smallest point of the whole
 # curve) because no complete beat was found
-def find_beats(area, fps, min_interval=MIN_BEAT_INTERVAL, smooth_window=SMOOTH_WINDOW, min_prominence=MIN_PROMINENCE):
+#
+# max_span: the furthest apart ED and ES can be (e.g. to fit in one clip). The fallback
+# stays within it so it always returns something usable.
+def find_beats(area, fps, min_interval=MIN_BEAT_INTERVAL, smooth_window=SMOOTH_WINDOW,
+               min_prominence=MIN_PROMINENCE, max_span=None):
     area = np.asarray(area, dtype=np.float64)
     if len(area) < 2:
         return []
@@ -57,14 +61,39 @@ def find_beats(area, fps, min_interval=MIN_BEAT_INTERVAL, smooth_window=SMOOTH_W
     for i, ed in enumerate(peaks):
         next_ed = peaks[i + 1] if i + 1 < len(peaks) else len(curve)
         es_after = troughs[(troughs > ed) & (troughs < next_ed)]
-        if len(es_after):
-            beats.append({"ed": int(ed), "es": int(es_after[0]), "fallback": False})
+        if len(es_after) == 0:
+            continue
+
+        # A pair further apart than max_span isn't one beat (e.g. a peak paired with a
+        # dip caused by the probe moving)
+        es = int(es_after[0])
+        if max_span is None or es - ed <= max_span:
+            beats.append({"ed": int(ed), "es": es, "fallback": False})
 
     # No complete beat: fall back to the largest and smallest point, the same rule
     # training uses to pick ED and ES from the annotated frames
     if not beats:
         ed, es = int(np.argmax(curve)), int(np.argmin(curve))
+
+        # Drift or a probe movement can put the global max and min too far apart for
+        # one beat, so use the window with the largest rise and fall instead
+        if max_span is not None and abs(ed - es) > max_span:
+            ed, es = _largest_swing(curve, max_span)
+
         if ed != es:
             beats.append({"ed": ed, "es": es, "fallback": True})
 
     return beats
+
+
+# Largest and smallest point inside the window of max_span + 1 frames where they
+# differ the most
+def _largest_swing(curve, max_span):
+    best, best_spread = (0, 0), -1.0
+    for start in range(max(1, len(curve) - max_span)):
+        window = curve[start:start + max_span + 1]
+        spread = window.max() - window.min()
+        if spread > best_spread:
+            best_spread = spread
+            best = (start + int(np.argmax(window)), start + int(np.argmin(window)))
+    return best
