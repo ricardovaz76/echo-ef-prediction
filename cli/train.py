@@ -1,5 +1,6 @@
 import argparse
 
+from data import CLIP_LENGTH, TARGET_FPS
 from .common import add_data_args
 
 
@@ -9,6 +10,13 @@ def parse_train_args(argv=None):
     add_data_args(parser)
     parser.add_argument("--output-dir", default="checkpoints",
                         help="Folder to save checkpoints and training curves to")
+
+    # Clip settings, saved in the checkpoint so testing and inference use the same ones
+    clips = parser.add_argument_group("clips")
+    clips.add_argument("--target-fps", type=int, default=TARGET_FPS,
+                       help="Frame rate every video is resampled to")
+    clips.add_argument("--clip-length", type=int, default=CLIP_LENGTH,
+                       help="Frames per clip around ED and ES")
 
     # Phase 1: joint segmentation + EF regression
     phase1 = parser.add_argument_group("phase 1 (joint segmentation + EF)")

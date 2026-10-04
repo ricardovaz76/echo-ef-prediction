@@ -70,8 +70,8 @@ def resample_frames(frames, fps, target_fps=TARGET_FPS):
 # Returns the clip (clip_length, H, W), clip_src, the original frame index of each
 # clip frame, and n_valid, the number of real (unpadded) frames, or None if ED and
 # ES are too far apart to fit in one clip
-def build_training_clip(frames, fps, ed, es, clip_length=CLIP_LENGTH):
-    rs_frames, src_idx = resample_frames(frames, fps)
+def build_training_clip(frames, fps, ed, es, clip_length=CLIP_LENGTH, target_fps=TARGET_FPS):
+    rs_frames, src_idx = resample_frames(frames, fps, target_fps)
     rs_frames, src_idx = rs_frames.copy(), src_idx.copy()
 
     # Swap in the exact annotated frames, earliest first so they stay in time order
@@ -116,8 +116,14 @@ def clip_path(save_dir, fname):
 # n_valid, the number of real frames before any padding.
 # Videos without both an ED and ES tracing, or with ED and ES too far apart to
 # fit in one clip, are not saved.
-def preprocess_view(df, video_dir, save_dir, patient_ids, mask_dict):
+def preprocess_view(df, video_dir, save_dir, patient_ids, mask_dict, clip_length=CLIP_LENGTH, target_fps=TARGET_FPS):
     os.makedirs(save_dir, exist_ok=True)
+
+    # Clear clips from a previous extraction, so a video skipped this time can't
+    # leave behind a stale clip made with different settings
+    for old in os.listdir(save_dir):
+        if old.endswith(".npz"):
+            os.remove(os.path.join(save_dir, old))
 
     frame_dict = build_frame_dict(mask_dict)
     fname_to_pid = df.drop_duplicates(subset="FileName").set_index("FileName")["patient_id"].to_dict()
@@ -135,7 +141,7 @@ def preprocess_view(df, video_dir, save_dir, patient_ids, mask_dict):
             skipped += 1
             continue
 
-        clip = build_training_clip(frames, fps, ed, es)
+        clip = build_training_clip(frames, fps, ed, es, clip_length, target_fps)
         if clip is None:
             skipped += 1
             continue
