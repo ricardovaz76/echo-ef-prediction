@@ -51,6 +51,7 @@ def plot_training_curves(train_losses, val_maes, val_dices, phase2_start, path):
 
 
 def main(argv=None):
+    print("Starting Training....")
     args = parse_train_args(argv)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
