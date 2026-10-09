@@ -60,41 +60,45 @@ def build_frame_dict(mask_dict):
 # Largest area is a ED contour
 # Smallest area is a ES contour
 def get_ed_es_by_area(mask_dict, file_name, frame_list, max_frame=None):
-    # Return if the frame list is empty (No frames found)
-    if len(frame_list) == 0:
-        return None, None
-    # Drops any frames that are out of bounds of actual max frames
-    if max_frame is not None:
-        frame_list = [f for f in frame_list if f < max_frame]
+  if len(frame_list) == 0:
+    return None, None
 
-    # Return if no frames are found
-    if len(frame_list) == 0:
-        return None, None
-
-    # Grabs the sum of each mask and stores it in the areas list
-    # Each mask is a binary mask meaning the foreground is 1s while background is 0s
-    # This means if a sum of a mask is a large number than its most likely an ED frame
-    # If the sum of a mask is a smaller number than its most likely an ES frame
-    areas = []
+  if max_frame is not None:
+    kept = []
     for f in frame_list:
-        mask = mask_dict.get((file_name, f), None)
-        if mask is None:
-            continue
-        areas.append((f, mask.sum()))
+      if f < max_frame:
+        kept.append(f)
+    frame_list = kept
 
-    # Return nothing if no areas were stored
-    if len(areas) == 0:
-        return None, None
+  if len(frame_list) == 0:
+    return None, None
 
-    # Filter out any negative or 0 area values, return if nothing was found
-    areas = [(f, a) for f, a in areas if a > 0]
-    if len(areas) == 0:
-        return None, None
+  # Iterate through each annotated frame in the file and calculate areas
+  areas = []
+  for f in frame_list:
+    mask = mask_dict.get((file_name, f), None)
+    if mask is not None:
+      areas.append((f, mask.sum()))
 
-    # Grabs the frame with the largest area value ED frame
-    ed = max(areas, key=lambda x: x[1])[0]
+  # No annotated frames were found
+  if len(areas) == 0:
+    return None, None
 
-    # Grabs the frame with the smallest area value ES frame
-    es = min(areas, key=lambda x: x[1])[0]
+  # Filter out any negative or 0 area values
+  kept = []
+  for f, a in areas:
+    if a > 0:
+      kept.append((f, a))
+  areas = kept
 
-    return int(ed), int(es)
+  # no valid annotated frames left
+  if len(areas) == 0:
+    return None, None
+
+  # Grabs the frame with the largest area value ED frame
+  ed = max(areas, key=lambda x: x[1])[0]
+
+  # Grabs the frame with the smallest area value ES frame
+  es = min(areas, key=lambda x: x[1])[0]
+
+  return int(ed), int(es)

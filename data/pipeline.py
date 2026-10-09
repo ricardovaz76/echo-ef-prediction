@@ -62,7 +62,7 @@ def build_datasets(dataset_root, processed_root, extract_frames=True, clip_lengt
     df_a4c_volume = merge_labels(df_a4c_volume, df_a4c)
     df_psax_volume = merge_labels(df_psax_volume, df_psax)
 
-    # Split before cleaning frames, matching the original notebook order
+    # Split before cleaning frames
     train_a4c_volume = split_by_fold(df_a4c_volume, TRAIN_SPLITS)
     val_a4c_volume   = split_by_fold(df_a4c_volume, VAL_SPLITS)
     test_a4c_volume  = split_by_fold(df_a4c_volume, TEST_SPLITS)
