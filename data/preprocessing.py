@@ -129,14 +129,14 @@ def preprocess_view(df, video_dir, save_dir, patient_ids, mask_dict, clip_length
     fname_to_pid = df.drop_duplicates(subset="FileName").set_index("FileName")["patient_id"].to_dict()
 
     saved = skipped = 0
-    for fname in df["FileName"].unique():
+    for filename in df["FileName"].unique():
 
-        if fname_to_pid[fname] not in patient_ids:
+        if fname_to_pid[filename] not in patient_ids:
             continue
 
-        frames, fps = load_video_frames(os.path.join(video_dir, fname))
+        frames, fps = load_video_frames(os.path.join(video_dir, filename))
 
-        ed, es = get_ed_es_by_area(mask_dict, fname, frame_dict[fname], max_frame=len(frames))
+        ed, es = get_ed_es_by_area(mask_dict, filename, frame_dict[filename], max_frame=len(frames))
         if ed is None or ed == es:
             skipped += 1
             continue
@@ -147,7 +147,7 @@ def preprocess_view(df, video_dir, save_dir, patient_ids, mask_dict, clip_length
             continue
 
         clip_frames, clip_src, n_valid = clip
-        np.savez(clip_path(save_dir, fname), frames=clip_frames, clip_src=clip_src, n_valid=n_valid)
+        np.savez(clip_path(save_dir, filename), frames=clip_frames, clip_src=clip_src, n_valid=n_valid)
         saved += 1
 
     print(f"{save_dir}: saved {saved} clips, skipped {skipped} videos")
