@@ -14,29 +14,29 @@ TARGET_FPS = 32
 
 # Returns the frames (T, 112, 112) and the video's frame rate
 def load_video_frames(video_path):
-    cap = cv2.VideoCapture(video_path)
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    frames = []
+  cap = cv2.VideoCapture(video_path)
+  fps = cap.get(cv2.CAP_PROP_FPS)
+  frames = []
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
+  while True:
+    ret, frame = cap.read()
+    if not ret:
+      break
 
-        frame = cv2.resize(frame, (112, 112))
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    frame = cv2.resize(frame, (112, 112))
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        frames.append(frame)
+    frames.append(frame)
 
-    cap.release()
+  cap.release()
 
-    # Return an empty placeholder if no frames were grabbed
-    if len(frames) == 0:
-        return np.zeros((0, 112, 112), dtype=np.uint8), fps
+  # Return an empty placeholder if no frames were grabbed
+  if len(frames) == 0:
+    return np.zeros((0, 112, 112), dtype=np.uint8), fps
 
-    # Kept as raw uint8 pixels (0-255) to save 4x disk space over float32,
-    # normalized to [0.0, 1.0] when loaded in EchoDataset
-    return np.array(frames, dtype=np.uint8), fps    # (T, 112, 112)
+  # Kept as raw uint8 pixels (0-255) to save 4x disk space over float32,
+  # normalized to [0.0, 1.0] when loaded in EchoDataset
+  return np.array(frames, dtype=np.uint8), fps    # (T, 112, 112)
 
 
 # Resamples frames from fps to target_fps by picking the nearest original frame for
@@ -45,17 +45,17 @@ def load_video_frames(video_path):
 # Returns the resampled frames and src_idx, the original frame index of each output
 # frame, which is used to map annotated frames onto the resampled video
 def resample_frames(frames, fps, target_fps=TARGET_FPS):
-    T = len(frames)
+  T = len(frames)
 
-    # Nothing to resample, or the video doesn't report a usable frame rate
-    if T == 0 or fps <= 0:
-        return frames, np.arange(T)
+  # Nothing to resample, or the video doesn't report a usable frame rate
+  if T == 0 or fps <= 0:
+    return frames, np.arange(T)
 
-    n_out = max(1, int(round(T * target_fps / fps)))
-    src_idx = np.round(np.arange(n_out) * fps / target_fps).astype(int)
-    src_idx = np.clip(src_idx, 0, T - 1)
+  n_out = max(1, int(round(T * target_fps / fps)))
+  src_idx = np.round(np.arange(n_out) * fps / target_fps).astype(int)
+  src_idx = np.clip(src_idx, 0, T - 1)
 
-    return frames[src_idx], src_idx
+  return frames[src_idx], src_idx
 
 
 # Builds the training clip for one video from its annotated ED and ES frames
@@ -71,41 +71,46 @@ def resample_frames(frames, fps, target_fps=TARGET_FPS):
 # clip frame, and n_valid, the number of real (unpadded) frames, or None if ED and
 # ES are too far apart to fit in one clip
 def build_training_clip(frames, fps, ed, es, clip_length=CLIP_LENGTH, target_fps=TARGET_FPS):
-    rs_frames, src_idx = resample_frames(frames, fps, target_fps)
-    rs_frames, src_idx = rs_frames.copy(), src_idx.copy()
+  rs_frames, src_idx = resample_frames(frames, fps, target_fps)
+  rs_frames, src_idx = rs_frames.copy(), src_idx.copy()
 
-    # Swap in the exact annotated frames, earliest first so they stay in time order
-    first, second = sorted((ed, es))
-    pos_first = nearest_position(src_idx, first)
-    pos_second = nearest_position(src_idx, second)
+  # Swap in the exact annotated frames, earliest first so they stay in time order
+  first, second = sorted((ed, es))
+  pos_first = nearest_position(src_idx, first)
+  pos_second = nearest_position(src_idx, second)
 
-    # At high frame rates both can map to the same resampled frame, so the later
-    # one takes the next slot (or the earlier one the previous slot at the end)
-    if pos_second == pos_first:
-        if pos_first + 1 < len(src_idx):
-            pos_second = pos_first + 1
-        elif pos_first > 0:
-            pos_first = pos_first - 1
-        else:
-            return None
+  # At high frame rates both can map to the same resampled frame, so the later
+  # one takes the next slot (or the earlier one the previous slot at the end)
+  if pos_second == pos_first:
+    if pos_first + 1 < len(src_idx):
+      pos_second = pos_first + 1
+    elif pos_first > 0:
+      pos_first = pos_first - 1
+    else:
+      return None
 
-    for pos, frame in ((pos_first, first), (pos_second, second)):
-        src_idx[pos] = frame
-        rs_frames[pos] = frames[frame]
+  for pos, frame in ((pos_first, first), (pos_second, second)):
+    src_idx[pos] = frame
+    rs_frames[pos] = frames[frame]
 
-    ed_pos = pos_first if ed == first else pos_second
-    es_pos = pos_second if ed == first else pos_first
+  if ed == first:
+    ed_pos = pos_first
+    es_pos = pos_second
+  else:
+    ed_pos = pos_second
+    es_pos = pos_first
 
-    if not fits_in_clip(ed_pos, es_pos, clip_length):
-        return None
+  # Skip video if ed and es frames don't fit within the clip length constraints
+  if not fits_in_clip(ed_pos, es_pos, clip_length):
+    return None
 
-    start = clip_start(ed_pos, es_pos, len(src_idx), clip_length)
-    return extract_clip(rs_frames, src_idx, start, clip_length)
+  start = clip_start(ed_pos, es_pos, len(src_idx), clip_length)
+  return extract_clip(rs_frames, src_idx, start, clip_length)
 
 
 # Where a video's saved clip lives, shared by extraction and EchoDataset
 def clip_path(save_dir, fname):
-    return os.path.join(save_dir, fname.replace(".avi", ".npz"))
+  return os.path.join(save_dir, fname.replace(".avi", ".npz"))
 
 
 # Saves the training clip of every video in a view so training can load clips

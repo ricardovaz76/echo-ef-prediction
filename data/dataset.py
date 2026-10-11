@@ -73,37 +73,36 @@ class EchoDataset(Dataset):
     #   ed, es: clip positions of the ED and ES frames
     #   n_valid: number of real frames, the rest are padding
     def _load_view(self, fname, clip_dir, mask_dict, frame_dict):
-        path = clip_path(clip_dir, fname)
-        data = np.load(path)
+      path = clip_path(clip_dir, fname)
+      data = np.load(path)
 
-        # Clips saved before n_valid was added can't tell real frames from padding
-        if "n_valid" not in data.files:
-            raise KeyError(f"{path} has no n_valid, re-run extraction without --skip-extraction")
+      # Clips saved before n_valid was added can't tell real frames from padding
+      if "n_valid" not in data.files:
+        raise KeyError(f"{path} has no n_valid, re-run extraction without --skip-extraction")
 
-        frames, clip_src, n_valid = data["frames"], data["clip_src"], int(data["n_valid"])
+      frames, clip_src, n_valid = data["frames"], data["clip_src"], int(data["n_valid"])
 
-        video = (torch.tensor(frames, dtype=torch.float32) / 255.0).unsqueeze(1)   # uint8 -> [0, 1]
+      video = (torch.tensor(frames, dtype=torch.float32) / 255.0).unsqueeze(1)   # uint8 -> [0, 1]
 
-        # Each annotated frame's mask goes on the clip frame it came from. Padding can
-        # repeat the last frame, so only the first copy gets the mask to avoid counting
-        # the same tracing more than once in the segmentation loss.
-        seg = np.zeros((len(frames), 1, 112, 112), dtype=np.float32)
-        clip_frames = []
-        for frame in frame_dict[fname]:
-            positions = np.flatnonzero(clip_src == frame)
-            if len(positions) == 0:
-                continue
-            seg[positions[0], 0] = mask_dict[(fname, frame)]
-            clip_frames.append(frame)
+      # Each annotated frame's mask goes on the clip frame it came from. Padding can
+      # repeat the last frame, so only the first copy gets the mask to avoid counting
+      # the same tracing more than once in the segmentation loss.
+      seg = np.zeros((len(frames), 1, 112, 112), dtype=np.float32)
+      clip_frames = []
+      for frame in frame_dict[fname]:
+        positions = np.flatnonzero(clip_src == frame)
+        if len(positions) != 0:
+          seg[positions[0], 0] = mask_dict[(fname, frame)]
+          clip_frames.append(frame)
 
-        # ED and ES from the annotated frames in the clip, as clip positions
-        ed, es = get_ed_es_by_area(mask_dict, fname, clip_frames)
+      # ED and ES from the annotated frames in the clip, as clip positions
+      ed, es = get_ed_es_by_area(mask_dict, fname, clip_frames)
 
-        # safety: ED or ES frame falls back to 0 if no annotation is found
-        ed = 0 if ed is None else int(np.flatnonzero(clip_src == ed)[0])
-        es = 0 if es is None else int(np.flatnonzero(clip_src == es)[0])
+      # safety: ED or ES frame falls back to 0 if no annotation is found
+      ed = 0 if ed is None else int(np.flatnonzero(clip_src == ed)[0])
+      es = 0 if es is None else int(np.flatnonzero(clip_src == es)[0])
 
-        return video, torch.from_numpy(seg), ed, es, n_valid
+      return video, torch.from_numpy(seg), ed, es, n_valid
 
     def __getitem__(self, idx):
 
