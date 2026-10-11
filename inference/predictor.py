@@ -1,6 +1,7 @@
 import torch
 from evaluation import resolve_clip_config
 from models import build_model
+from data import load_video_frames, resample_frames
 
 
 class EchoPredictor:
@@ -25,3 +26,23 @@ class EchoPredictor:
     model.load_state_dict(checkpoint["model_state_dict"])
 
     self.model = model.eval()
+
+  def load_view(self, video_path):
+    frames, fps = load_video_frames(video_path)
+    if len(frames) == 0:
+      raise ValueError(
+        f"No frames were extracted from {video_path}"
+      )
+
+    if fps <= 0:
+      raise ValueError(
+        f"No fps was detected during frame extraction for {video_path}"
+      )
+
+    rs_frames, _ = resample_frames(frames, fps, self.config["target_fps"])
+
+    return rs_frames
+
+  def convert_to_model_input(self, frames):
+    video = (torch.from_numpy(frames).to(self.device).float()/255.0).unsqueeze(1).unsqueeze(0)
+    return video
