@@ -21,32 +21,17 @@ class EchoNetModel(nn.Module):
     def __init__(self, seg_model, ef_head, temporal_conv, temporal_transformer):
         super().__init__()
 
-        # -------------------------
-        # components
-        # -------------------------
         self.ef_head = ef_head
-
-        # Shared with seg_model (same module, not a copy), so what the encoder learns
-        # from segmentation directly benefits EF regression
         self.encoder = seg_model.encoder
         self.seg_model = seg_model
 
-        # -------------------------
-        # temporal transformer
-        # -------------------------
         # EF depends on how the heart changes over the whole cardiac cycle, so this
         # lets every frame attend to every other frame before summarizing the video
         self.temporal_transformer = temporal_transformer
 
-        # -------------------------
-        # temporal conv
-        # -------------------------
         # Short-range motion between neighbouring frames
         self.temporal_conv = temporal_conv
 
-    # =========================================================
-    # FORWARD
-    # =========================================================
     # a4c: (B, T_a, 1, H, W), psax: (B, T_p, 1, H, W)
     # The views can have different frame counts since they are separate recordings
     # valid_a4c, valid_psax: (B,) number of real frames in each clip, the rest is
@@ -65,7 +50,6 @@ class EchoNetModel(nn.Module):
         # encoding + segmentation
         # -------------------------
 
-        # Encode once and reuse the features for both tasks to avoid a second, costly encoder pass
         f1_a4c, f2_a4c, f3_a4c   = self.encoder(a4c_flat)
         f1_psax, f2_psax, f3_psax = self.encoder(psax_flat)
 
