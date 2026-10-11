@@ -8,3 +8,4 @@ from .metrics import (
 from .evaluate import evaluate, print_metrics
 from .plots import plot_segmentation_overlays, plot_regression, plot_roc, plot_bland_altman
 from .video import overlay_mask, save_segmentation_video, render_sample_videos
+from .test import resolve_ef_stats, resolve_clip_config
