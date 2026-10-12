@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def find_ed_es(areas, clip_length, smooth_window=3):
   if smooth_window % 2 == 0:
     raise ValueError(f"smooth_window must be odd, got {smooth_window}")
