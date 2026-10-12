@@ -46,3 +46,19 @@ class EchoPredictor:
   def convert_to_model_input(self, frames):
     video = (torch.from_numpy(frames).to(self.device).float()/255.0).unsqueeze(1).unsqueeze(0)
     return video
+
+  def segment_frames(self, frames, batch_size=64):
+    seg_model = self.model.seg_model
+    seg_input = self.convert_to_model_input(frames) # (B, T, C, H, W)
+    seg_input = seg_input.squeeze(0) # -> (T, C, H, W) expected input for segmentations
+
+    areas = []
+    with torch.inference_mode():
+      for i in range(0, len(frames), batch_size):
+        logits = seg_model(seg_input[i:i+batch_size])
+        chunk_areas = torch.sigmoid(logits).sum(dim=[-1, -2]).squeeze(1)
+        areas.append(chunk_areas)
+
+    area_tensor = torch.cat(areas, dim=0)
+    return area_tensor.cpu().numpy()
+
