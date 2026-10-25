@@ -1,0 +1,99 @@
+import numpy as np
+import torch
+from evaluation import resolve_clip_config
+from models import build_model
+from data import load_video_frames, resample_frames, clip_start, extract_clip
+from .beats import find_ed_es
+
+
+class EchoPredictor:
+  def __init__(self, checkpoint_path, device=None):
+    self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
+
+    checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=True)
+
+    ef_mean, ef_std = checkpoint.get("ef_mean"), checkpoint.get("ef_std")
+    if ef_mean is None or ef_std is None:
+      raise ValueError(
+        "This checkpoint does not store ef_mean/ef_std."
+      )
+
+    self.ef_mean = ef_mean
+    self.ef_std = ef_std
+
+    config = resolve_clip_config(checkpoint)
+    self.config = config
+
+    model = build_model(self.device, clip_length=config["clip_length"])
+    model.load_state_dict(checkpoint["model_state_dict"])
+
+    self.model = model.eval()
+
+  def load_view(self, video_path):
+    frames, fps = load_video_frames(video_path)
+    if len(frames) == 0:
+      raise ValueError(
+        f"No frames were extracted from {video_path}"
+      )
+
+    if fps <= 0:
+      raise ValueError(
+        f"No fps was detected during frame extraction for {video_path}"
+      )
+
+    rs_frames, _ = resample_frames(frames, fps, self.config["target_fps"])
+
+    return rs_frames
+
+  def convert_to_model_input(self, frames):
+    video = (torch.from_numpy(frames).to(self.device).float()/255.0).unsqueeze(1).unsqueeze(0)
+    return video
+
+  def segment_frames(self, frames, batch_size=64):
+    seg_model = self.model.seg_model
+    seg_input = self.convert_to_model_input(frames) # (B, T, C, H, W)
+    seg_input = seg_input.squeeze(0) # -> (T, C, H, W) expected input for segmentations
+
+    areas = []
+    with torch.inference_mode():
+      for i in range(0, len(frames), batch_size):
+        logits = seg_model(seg_input[i:i+batch_size])
+        chunk_areas = torch.sigmoid(logits).sum(dim=[-1, -2]).squeeze(1)
+        areas.append(chunk_areas)
+
+    area_tensor = torch.cat(areas, dim=0)
+    return area_tensor.cpu().numpy()
+
+  # Turns one video into the clip the model sees, placed around the predicted
+  # ED -> ES span the same way training clips were placed around the annotated one
+  #
+  # Returns the clip (1, clip_length, 1, 112, 112) and n_valid (1,), the number of
+  # real frames before padding, which the transformer uses to ignore the padding
+  def prepare_view(self, video_path):
+    clip_length = self.config["clip_length"]
+
+    frames = self.load_view(video_path)
+    areas = self.segment_frames(frames)
+    ed, es = find_ed_es(areas, clip_length)
+
+    # extract_clip also tracks each frame's source index, which the model never
+    # reads, so positions in the resampled video are enough here
+    start = clip_start(ed, es, len(frames), clip_length)
+    clip, _, n_valid = extract_clip(frames, np.arange(len(frames)), start, clip_length)
+
+    clip = self.convert_to_model_input(clip)
+    n_valid = torch.tensor([n_valid], device=self.device)
+
+    return clip, n_valid
+
+  # Predicts EF (%) from an A4C and a PSAX video of the same visit
+  def predict(self, a4c_path, psax_path):
+    a4c, valid_a4c = self.prepare_view(a4c_path)
+    psax, valid_psax = self.prepare_view(psax_path)
+
+    with torch.inference_mode():
+      ef, _ = self.model(a4c, psax, valid_a4c, valid_psax)   # (1, 1)
+
+    # The model was trained on z-scored EF, so undo that with the train set stats
+    return ef.item() * self.ef_std + self.ef_mean
+

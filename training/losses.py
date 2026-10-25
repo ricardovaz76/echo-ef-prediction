@@ -4,9 +4,6 @@ import torch.nn.functional as F
 
 # Weighted Smooth L1 loss is used for regression to put more emphasis on the severe
 # and borderline cases which are more clinically important to predict accurately
-#
-# ef_mean and ef_std are the train set EF stats, used to move the 35/50 EF cutoffs
-# into the same normalized space as the targets
 def weighted_smooth_l1(pred, target, ef_mean, ef_std):
     base_loss = F.smooth_l1_loss(pred, target, reduction="none")
 
@@ -23,8 +20,7 @@ def weighted_smooth_l1(pred, target, ef_mean, ef_std):
 
 
 # Dice loss is used for segmentation tasks to directly optimize the overlap
-# between the predicted segmentation mask and the ground truth mask. It is particularly
-# effective for this case because the heart region is often small compared to the overall image.
+# between the predicted segmentation mask and the ground truth mask.
 def dice_loss(pred, target, smooth=1e-6):
     pred = torch.sigmoid(pred)
 
@@ -90,9 +86,6 @@ def compute_loss(pred_reg, pred_seg_pair, y_reg, y_seg_pair, pred_ed_es=None, gt
     pred_seg_a4c, pred_seg_psax = pred_seg_pair
     y_seg_a4c, y_seg_psax = y_seg_pair
 
-    # -------------------------
-    # REGRESSION
-    # -------------------------
     loss_reg = weighted_smooth_l1(
         pred_reg.view(-1),
         y_reg.view(-1),
@@ -100,21 +93,15 @@ def compute_loss(pred_reg, pred_seg_pair, y_reg, y_seg_pair, pred_ed_es=None, gt
         ef_std
     )
 
-    # -------------------------
-    # FULL VIDEO SEGMENTATION LOSS
-    # -------------------------
     # This segmentation loss is computed across the entire video but since there are only 2 annotated frames,
     # the loss is really computed on those 2 frames but the gradients can flow through the entire video which allows
-    # the model to learn from the unannotated frames as well.
+    # the model to learn from the unannotated frames as well. (weak supervision)
 
     loss_seg = (
         compute_seg_loss(pred_seg_a4c, y_seg_a4c) +
         compute_seg_loss(pred_seg_psax, y_seg_psax)
     ) * 0.5
 
-    # -------------------------
-    # ED/ES AUXILIARY LOSS
-    # -------------------------
     # This auxiliary segmentation loss is computed only on the ED and ES frames from both the predicted segmentation masks and the
     # ground truth segmentation masks, this loss is used to provide a stronger and more direct supervision on the signal from the ED
     # and ES frames which are clinicly the most important frames for the EF regression tasks. Without it, the regression task might have to
