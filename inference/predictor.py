@@ -86,3 +86,14 @@ class EchoPredictor:
 
     return clip, n_valid
 
+  # Predicts EF (%) from an A4C and a PSAX video of the same visit
+  def predict(self, a4c_path, psax_path):
+    a4c, valid_a4c = self.prepare_view(a4c_path)
+    psax, valid_psax = self.prepare_view(psax_path)
+
+    with torch.inference_mode():
+      ef, _ = self.model(a4c, psax, valid_a4c, valid_psax)   # (1, 1)
+
+    # The model was trained on z-scored EF, so undo that with the train set stats
+    return ef.item() * self.ef_std + self.ef_mean
+
