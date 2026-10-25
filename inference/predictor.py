@@ -1,7 +1,9 @@
+import numpy as np
 import torch
 from evaluation import resolve_clip_config
 from models import build_model
-from data import load_video_frames, resample_frames
+from data import load_video_frames, resample_frames, clip_start, extract_clip
+from .beats import find_ed_es
 
 
 class EchoPredictor:
@@ -61,4 +63,26 @@ class EchoPredictor:
 
     area_tensor = torch.cat(areas, dim=0)
     return area_tensor.cpu().numpy()
+
+  # Turns one video into the clip the model sees, placed around the predicted
+  # ED -> ES span the same way training clips were placed around the annotated one
+  #
+  # Returns the clip (1, clip_length, 1, 112, 112) and n_valid (1,), the number of
+  # real frames before padding, which the transformer uses to ignore the padding
+  def prepare_view(self, video_path):
+    clip_length = self.config["clip_length"]
+
+    frames = self.load_view(video_path)
+    areas = self.segment_frames(frames)
+    ed, es = find_ed_es(areas, clip_length)
+
+    # extract_clip also tracks each frame's source index, which the model never
+    # reads, so positions in the resampled video are enough here
+    start = clip_start(ed, es, len(frames), clip_length)
+    clip, _, n_valid = extract_clip(frames, np.arange(len(frames)), start, clip_length)
+
+    clip = self.convert_to_model_input(clip)
+    n_valid = torch.tensor([n_valid], device=self.device)
+
+    return clip, n_valid
 
