@@ -3,19 +3,16 @@ from contextlib import asynccontextmanager
 from inference import EchoPredictor
 import os
 import tempfile
-import shutil
-
-def save_upload(upload, folder, name):
-  extension = os.path.splitext(upload.filename or "")[1]
-  path = os.path.join(folder, name + extension)
-  with open(path, "wb") as f:
-    shutil.copyfileobj(upload.file, f)
-  return path
+from .helpers import save_upload, resolve_checkpoint
 
 @asynccontextmanager
 async def lifespan(app):
-  # runs once at startup, before the first request
-  app.state.predictor = EchoPredictor("checkpoints/best_model_mae.pth")
+  checkpoint = os.environ.get("ECHO_CHECKPOINT")
+  if not checkpoint:
+    raise RuntimeError("ECHO_CHECKPOINT is not set, e.g. start with --env-file .env.local")
+
+  app.state.checkpoint = checkpoint
+  app.state.predictor = EchoPredictor(resolve_checkpoint(checkpoint), device=os.environ.get("ECHO_DEVICE"))
   app.state.predictor.warm_up()
   yield
 
@@ -24,7 +21,7 @@ app = FastAPI(lifespan=lifespan)
 @app.get("/health")
 def health():
   predictor = app.state.predictor
-  return {"status": "ok", "device": str(predictor.device)}
+  return {"status": "ok", "device": str(predictor.device), "checkpoint": app.state.checkpoint}
 
 @app.post("/predict")
 def predict(a4c: UploadFile = File(...), psax: UploadFile = File(...)):
