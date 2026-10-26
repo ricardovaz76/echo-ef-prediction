@@ -97,3 +97,14 @@ class EchoPredictor:
     # The model was trained on z-scored EF, so undo that with the train set stats
     return ef.item() * self.ef_std + self.ef_mean
 
+  # The first pass on a GPU is slow (~1.5 s) while CUDA loads its kernels, so a
+  # server runs one blank clip through the model at startup instead of making
+  # the first request wait
+  def warm_up(self):
+    clip_length = self.config["clip_length"]
+    blank = torch.zeros(1, clip_length, 1, 112, 112, device=self.device)
+    n_valid = torch.tensor([clip_length], device=self.device)
+
+    with torch.inference_mode():
+      self.model(blank, blank, n_valid, n_valid)
+
