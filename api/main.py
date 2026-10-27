@@ -1,4 +1,5 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from inference import EchoPredictor
 import os
@@ -17,6 +18,14 @@ async def lifespan(app):
   yield
 
 app = FastAPI(lifespan=lifespan)
+origins = [o.strip() for o in os.environ.get("ECHO_CORS_ORIGINS", "").split(",") if o.strip()]
+
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=origins,
+  allow_methods=["GET", "POST"],
+  allow_headers=["*"]
+)
 
 @app.get("/health")
 def health():
