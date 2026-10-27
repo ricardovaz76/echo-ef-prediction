@@ -4,7 +4,9 @@ from contextlib import asynccontextmanager
 from inference import EchoPredictor
 import os
 import tempfile
-from .helpers import save_upload, resolve_checkpoint
+from .helpers import save_upload, resolve_checkpoint, UploadTooLarge
+
+MAX_UPLOAD_BYTES = int(os.environ.get("ECHO_MAX_UPLOAD_MB", "50")) * 1024 * 1024
 
 @asynccontextmanager
 async def lifespan(app):
@@ -35,11 +37,18 @@ def health():
 @app.post("/predict")
 def predict(a4c: UploadFile = File(...), psax: UploadFile = File(...)):
   with tempfile.TemporaryDirectory() as tmp_dir:
-    a4c_path = save_upload(a4c, tmp_dir, "a4c")
-    psax_path = save_upload(psax, tmp_dir, "psax")
+    # Try block for file uploads
+    try:
+      a4c_path = save_upload(a4c, tmp_dir, "a4c", MAX_UPLOAD_BYTES)
+      psax_path = save_upload(psax, tmp_dir, "psax", MAX_UPLOAD_BYTES)
+    except UploadTooLarge as e:
+      raise HTTPException(status_code=413, detail=str(e))
+
+    # Try block for model predictions
     try:
       prediction = app.state.predictor.predict(a4c_path, psax_path)
     except ValueError as e:
       msg = str(e).replace(a4c_path, a4c.filename).replace(psax_path, psax.filename)
       raise HTTPException(status_code=400, detail=msg)
+    
   return {"ef": round(prediction, 1)}
