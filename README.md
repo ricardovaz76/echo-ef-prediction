@@ -23,15 +23,6 @@ The model was trained on the [EchoNet-Pediatric](https://echonet.github.io/pedia
 - **Temporal features:** a 1D residual convolution captures motion between neighbouring frames, and a transformer summarises the whole clip.
 - **EF head:** both views' features and a mask-area EF estimate per view are concatenated and passed through a 2-layer MLP (514 → 128 → 1).
 
-## In Action
-
-Left ventricle segmentation on an A4C (left) and a PSAX (right) test video:
-
-<p>
-  <img src="results/a4c_video.gif" width="300" alt="A4C segmentation"/>
-  <img src="results/psax_video.gif" width="300" alt="PSAX segmentation"/>
-</p>
-
 ## Results
 
 Measured on the 351 A4C + PSAX test pairs. "Annotated clips" uses the dataset's traced ED/ES frames; "raw videos" is the full inference pipeline, which finds ED/ES itself.
@@ -61,10 +52,6 @@ Raw-video inference had no failures and took about 72 ms per pair on a GPU.
 <p><em>Distribution of prediction errors</em></p>
 
 ![Error distribution](results/ErrorDist.png)
-
-<p><em>Predicted left ventricle masks on test frames</em></p>
-
-![Segmentation masks](results/segmentation_masks.png)
 
 ## Features
 
@@ -104,7 +91,7 @@ Raw-video inference had no failures and took about 72 ms per pair on a GPU.
 ├── inference/           # EchoPredictor, ED/ES detection and the predict CLI
 ├── models/              # Encoder, decoder, temporal layers and the full model
 ├── notebooks/           # Data exploration
-├── results/             # Plots and GIFs shown in this README
+├── results/             # Plots shown in this README
 ├── tests/               # API tests
 └── training/            # Two-phase training loop and losses
 ```
