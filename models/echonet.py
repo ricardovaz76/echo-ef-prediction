@@ -11,12 +11,9 @@ def padding_mask(valid, T):
     return positions.unsqueeze(0) >= valid.unsqueeze(1)
 
 
-# Dual-view multi-task model
-#
-# Predicts ejection fraction from an A4C and a PSAX video of the same visit.
-# Segmentation is trained alongside EF so the shared encoder learns where the
-# left ventricle is, which gives the EF prediction more meaningful features
-# than learning from EF labels alone.
+# Dual-view multi-task model: predicts EF from an A4C and a PSAX video of the same visit.
+# Segmentation is trained alongside EF so the shared encoder learns where the left
+# ventricle is, giving the EF prediction better features than EF labels alone
 class EchoNetModel(nn.Module):
     def __init__(self, seg_model, ef_head, temporal_conv, temporal_transformer):
         super().__init__()
@@ -32,10 +29,8 @@ class EchoNetModel(nn.Module):
         # Short-range motion between neighbouring frames
         self.temporal_conv = temporal_conv
 
-    # a4c: (B, T_a, 1, H, W), psax: (B, T_p, 1, H, W)
-    # The views can have different frame counts since they are separate recordings
-    # valid_a4c, valid_psax: (B,) number of real frames in each clip, the rest is
-    # padding; None if every frame is real
+    # a4c: (B, T_a, 1, H, W), psax: (B, T_p, 1, H, W), frame counts can differ per view
+    # valid_a4c, valid_psax: (B,) real frames per clip (the rest is padding), or None
     def forward(self, a4c, psax, valid_a4c=None, valid_psax=None):
 
         B, T_a, C, H, W = a4c.shape
@@ -74,13 +69,9 @@ class EchoNetModel(nn.Module):
         # -----------------------------
         # EF proxy signals
         # -----------------------------
-        # Gives the regression head an explicit, geometry-based hint: EF is how much the
-        # ventricle shrinks from its largest (ED) to its smallest (ES) size, which can be
-        # approximated from the predicted mask areas. Detached so the proxy can't pull
-        # the segmentation toward whatever makes EF easier instead of accurate masks.
-        #
-        # The decoder outputs logits, so sigmoid turns them into per-pixel probabilities
-        # whose sum is the soft mask area
+
+        # A geometric EF hint from the soft mask areas (sum of sigmoid probabilities).
+        # Detached so the proxy can't pull the segmentation away from accurate masks
         a4c_areas  = torch.sigmoid(seg_a4c.detach()).squeeze(2).sum(dim=[-1, -2])     # (B, T_a)
         psax_areas = torch.sigmoid(seg_psax.detach()).squeeze(2).sum(dim=[-1, -2])    # (B, T_p)
 
@@ -99,6 +90,7 @@ class EchoNetModel(nn.Module):
         # -----------------------------
         # global temporal context
         # -----------------------------
+
         # Summarizes each video into a single vector that reflects the full cardiac cycle
         a4c_feat  = self.temporal_transformer(feat_a4c,  padding_mask(valid_a4c,  T_a))   # (B, 256)
         psax_feat = self.temporal_transformer(feat_psax, padding_mask(valid_psax, T_p))   # (B, 256)

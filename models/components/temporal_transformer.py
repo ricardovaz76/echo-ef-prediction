@@ -13,7 +13,7 @@ class TemporalTransformer(nn.Module):
         self.pos_embedding = nn.Parameter(torch.zeros(1, max_len, d_model))
         nn.init.normal_(self.pos_embedding, std=0.02)
 
-        # Initailize transformer with 8 heads and 2 layers
+        # Initialize transformer with 8 heads and 2 layers
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=d_model,
             nhead=nhead,

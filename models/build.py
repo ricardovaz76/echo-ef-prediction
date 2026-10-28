@@ -13,11 +13,8 @@ from .echonet import EchoNetModel
 FEATURE_DIM = 256
 
 
-# Builds the full EchoNetModel and moves it to device
-# Shared by training, testing, and inference so they all build the same architecture
-#
-# clip_length: frames per clip, sets how many positions the transformer's
-#              positional embedding covers (CLIP_LENGTH in data/clips.py)
+# Builds the full EchoNetModel on device, shared by training, testing and inference
+# clip_length sets the transformer's positional embedding size (CLIP_LENGTH in data/clips.py)
 def build_model(device, clip_length=32):
     encoder    = ResNetEncoder()
     replace_bn_with_gn(encoder)

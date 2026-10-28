@@ -1,10 +1,8 @@
 import torch.nn as nn
 
 
-# Captures short-range motion (is the ventricle contracting or relaxing right now)
-# that a single frame can't show. Two kernel-3 convs see ~2 frames on each side.
-#
-# Subclasses nn.Sequential so the conv weights keep the same names in checkpoints
+# Captures short-range motion (contracting or relaxing) that one frame can't show.
+# Subclasses nn.Sequential so the conv weights keep their names in checkpoints
 class TemporalConv(nn.Sequential):
     def __init__(self, feature_dim=256, kernel_size=3):
         # No ReLU after the last conv: its output is added back as a residual, so it
