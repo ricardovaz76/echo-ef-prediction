@@ -1,0 +1,29 @@
+# Packages needed to train, evaluate and serve the model, pinned to the versions
+# the project was verified with (Python 3.10)
+#
+#   pip install -r requirements.txt
+#
+# On Linux, PyPI's torch is the CUDA build. Machines without a GPU (e.g. CI) can
+# install the much smaller CPU build first:
+#   pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cpu
+
+# Model
+torch==2.5.1
+torchvision==0.20.1
+
+# Data and video loading (headless: no GUI parts, which servers don't need)
+numpy==1.26.4
+pandas==2.2.2
+opencv-python-headless==4.10.0.84
+
+# Evaluation metrics and plots
+scikit-learn==1.5.2
+matplotlib==3.9.2
+
+# API
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+
+# Checkpoints stored in S3
+boto3==1.43.119

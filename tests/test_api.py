@@ -7,6 +7,7 @@
 import os
 import tempfile
 import pytest
+import torch
 
 os.environ.setdefault("ECHO_CHECKPOINT", "checkpoints/best_model_mae.pth")
 os.environ.setdefault("ECHO_CORS_ORIGINS", "http://localhost:5173")
@@ -15,20 +16,35 @@ from fastapi.testclient import TestClient
 
 import api.main
 from api.main import app
+from data import CLIP_LENGTH, TARGET_FPS
+from models import build_model
 
 
 # Bytes that no video decoder can read, for the error paths
 FAKE_VIDEO = b"not a video"
 
 
-# One client for the whole file: entering it runs the lifespan, which loads the
-# model, and that takes seconds, so it happens once instead of once per test
+# A checkpoint with untrained weights in the same format training saves, for
+# machines without the real one (it's gitignored, so e.g. a fresh CI checkout)
+def save_random_checkpoint(folder):
+  config = {"clip_length": CLIP_LENGTH, "target_fps": TARGET_FPS}
+  model = build_model(torch.device("cpu"), clip_length=config["clip_length"])
+
+  path = folder / "random_weights.pth"
+  torch.save({"model_state_dict": model.state_dict(), "ef_mean": 60.0, "ef_std": 10.0, "config": config}, path)
+  return path
+
+
+# One client per file, since the lifespan loads the model. Without the real checkpoint
+# a random-weights one is used, so CI runs the tests instead of skipping them all
 @pytest.fixture(scope="module")
-def client():
-  if not os.path.exists(os.environ["ECHO_CHECKPOINT"]):
-    pytest.skip(f"checkpoint not found: {os.environ['ECHO_CHECKPOINT']}")
-  with TestClient(app) as c:
-    yield c
+def client(tmp_path_factory):
+  with pytest.MonkeyPatch.context() as mp:
+    if not os.path.exists(os.environ["ECHO_CHECKPOINT"]):
+      mp.setenv("ECHO_CHECKPOINT", str(save_random_checkpoint(tmp_path_factory.mktemp("checkpoint"))))
+
+    with TestClient(app) as c:
+      yield c
 
 
 def fake_upload(name):
