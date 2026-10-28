@@ -5,6 +5,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)
 ![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=flat&logo=opencv&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat&logo=githubactions&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 A deep learning model that segments the left ventricle and predicts ejection fraction (EF) from pediatric echocardiogram videos, served through a REST API. It takes an apical 4-chamber (A4C) and a parasternal short-axis (PSAX) video from the same visit and returns the EF as a percentage. A web frontend that uses this API is in progress.
 
@@ -171,7 +172,7 @@ Thank you to Stanford University and the EchoNet team for making this dataset av
 
 ## License
 
-_TBD_
+Distributed under the MIT License. See `LICENSE` for details.
 
 ## Contact
 
