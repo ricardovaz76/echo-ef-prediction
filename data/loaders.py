@@ -12,11 +12,8 @@ def build_dataloaders(train_dataset, val_dataset, test_dataset, batch_size=1, nu
     return train_loader, val_loader, test_loader
 
 
-# Computes the mean and std of the EF values from the train set to normalize
-# the regression target during training, which helps with training stability.
-#
-# Reads the EF values straight from the dataset's sample list instead of
-# iterating the DataLoader, so no videos have to be loaded.
+# Train set EF mean and std, used to normalize the regression target for stability.
+# Reads EF from the sample list instead of the DataLoader, so no videos are loaded
 def compute_ef_stats(dataset):
     all_ef = torch.tensor([ef for _, _, ef in dataset.samples], dtype=torch.float32)
 

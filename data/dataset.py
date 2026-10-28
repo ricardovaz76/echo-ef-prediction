@@ -65,9 +65,7 @@ class EchoDataset(Dataset):
     def __len__(self):
         return len(self.samples)
 
-    # Loads one view's clip and builds its segmentation targets
-    #
-    # Returns:
+    # Loads one view's clip and builds its segmentation targets. Returns:
     #   video:  (T, 1, H, W) frames normalized to [0, 1]
     #   seg:    (T, 1, H, W) ground truth masks on the annotated frames, zeros elsewhere
     #   ed, es: clip positions of the ED and ES frames

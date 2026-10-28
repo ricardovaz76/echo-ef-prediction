@@ -39,11 +39,8 @@ def load_video_frames(video_path):
   return np.array(frames, dtype=np.uint8), fps    # (T, 112, 112)
 
 
-# Resamples frames from fps to target_fps by picking the nearest original frame for
-# each output time step (drops frames for faster videos, repeats them for slower ones)
-#
-# Returns the resampled frames and src_idx, the original frame index of each output
-# frame, which is used to map annotated frames onto the resampled video
+# Resamples to target_fps by picking the nearest original frame for each time step.
+# Also returns src_idx, each output frame's original index, to map annotations onto it
 def resample_frames(frames, fps, target_fps=TARGET_FPS):
   T = len(frames)
 
@@ -58,18 +55,9 @@ def resample_frames(frames, fps, target_fps=TARGET_FPS):
   return frames[src_idx], src_idx
 
 
-# Builds the training clip for one video from its annotated ED and ES frames
-#
-# Resampling can drop the exact annotated frames, which would leave their masks on
-# a neighbouring frame that doesn't match the image. So the closest resampled frame
-# is swapped for the exact annotated frame (shifting its timing by at most half a
-# resampled step) to keep every mask aligned with the image it was traced on.
-#
-# frames: all original frames (T, H, W), ed/es: original 0-based frame indices
-#
-# Returns the clip (clip_length, H, W), clip_src, the original frame index of each
-# clip frame, and n_valid, the number of real (unpadded) frames, or None if ED and
-# ES are too far apart to fit in one clip
+# Builds one video's training clip around its annotated ED and ES (original frame indices).
+# The exact annotated frames are swapped in after resampling so masks match their images.
+# Returns (clip, clip_src, n_valid) like extract_clip, or None if ED and ES don't fit
 def build_training_clip(frames, fps, ed, es, clip_length=CLIP_LENGTH, target_fps=TARGET_FPS):
   rs_frames, src_idx = resample_frames(frames, fps, target_fps)
   rs_frames, src_idx = rs_frames.copy(), src_idx.copy()
@@ -113,14 +101,8 @@ def clip_path(save_dir, fname):
   return os.path.join(save_dir, fname.replace(".avi", ".npz"))
 
 
-# Saves the training clip of every video in a view so training can load clips
-# directly instead of decoding videos every epoch
-#
-# Each .npz holds frames (clip_length, 112, 112) uint8, clip_src, the original
-# frame index of each clip frame, which EchoDataset uses to place the masks, and
-# n_valid, the number of real frames before any padding.
-# Videos without both an ED and ES tracing, or with ED and ES too far apart to
-# fit in one clip, are not saved.
+# Saves every video's training clip as .npz (frames, clip_src, n_valid) so training
+# doesn't decode videos each epoch. Videos without usable ED/ES tracings are skipped
 def preprocess_view(df, video_dir, save_dir, patient_ids, mask_dict, clip_length=CLIP_LENGTH, target_fps=TARGET_FPS):
     os.makedirs(save_dir, exist_ok=True)
 
