@@ -92,12 +92,8 @@ def save_segmentation_video(frames, masks, pred_ef=None, path="segmentation.mp4"
     out.release()
 
 
-# Picks a test sample and saves its A4C and PSAX segmentation videos with the predicted EF
-#
-# idx:  which sample to render, a random one if None
-# seed: set to reproduce the same random sample
-#
-# Returns the predicted and ground truth EF
+# Saves a test sample's A4C and PSAX segmentation videos and returns its predicted and true EF.
+# idx picks the sample (random if None), seed makes the random pick reproducible
 @torch.no_grad()
 def render_sample_videos(model, dataset, device, ef_mean, ef_std, out_dir, idx=None, seed=None):
     os.makedirs(out_dir, exist_ok=True)

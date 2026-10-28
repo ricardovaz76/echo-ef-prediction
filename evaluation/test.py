@@ -1,9 +1,6 @@
-# Evaluates a trained EchoNetModel checkpoint on the test split
-#
-# Prints the test metrics and saves the segmentation overlays, regression,
-# ROC, and Bland-Altman plots to --output-dir. With --video, also saves the
-# A4C and PSAX segmentation videos for one test sample.
-#
+# Evaluates a checkpoint on the test split: prints the metrics and saves the overlay, regression,
+# ROC and Bland-Altman plots to --output-dir (--video also saves one sample's segmentation videos)
+
 # Run from the repo root:
 #   python -m evaluation.test --dataset-root path/to/dataset --processed-root path/to/processed \
 #       --checkpoint checkpoints/best_model_mae.pth

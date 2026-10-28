@@ -19,10 +19,8 @@ def show_overlay(ax, frame, pred_mask, gt_mask=None, title=""):
     ax.axis("off")
 
 
-# Saves one figure per sample with the A4C and PSAX ED/ES predictions
-#
-# The ground truth mask is used as the background instead of the echo frame
-# so the comparison focuses on predicted mask (red) vs ground truth (green outline)
+# Saves one figure per sample with the A4C and PSAX ED/ES predictions, drawn on the ground
+# truth mask instead of the echo frame to compare prediction (red) with truth (green outline)
 def plot_segmentation_overlays(all_samples, out_dir, num_samples=10):
     os.makedirs(out_dir, exist_ok=True)
 
