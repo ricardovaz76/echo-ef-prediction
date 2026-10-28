@@ -36,11 +36,8 @@ def dice_loss(pred, target, smooth=1e-6):
     return 1 - dice.mean()
 
 
-# Focal loss is used to handle class imbalance in segmentation masks
-# The loss focuses more on the hard examples which is the heart region in this case
-# while downweighting the easy examples which is the background
-# This helps ensure the heart is correctly targeted during training despite being a small portion
-# of the image.
+# Focal loss handles the class imbalance in the masks: it focuses on the hard pixels (the
+# small ventricle region) and downweights the easy background
 def focal_loss_with_logits(logits, targets, alpha=0.75, gamma=2.0):
     bce = F.binary_cross_entropy_with_logits(
         logits,
@@ -93,19 +90,16 @@ def compute_loss(pred_reg, pred_seg_pair, y_reg, y_seg_pair, pred_ed_es=None, gt
         ef_std
     )
 
-    # This segmentation loss is computed across the entire video but since there are only 2 annotated frames,
-    # the loss is really computed on those 2 frames but the gradients can flow through the entire video which allows
-    # the model to learn from the unannotated frames as well. (weak supervision)
+    # Only the 2 annotated frames have masks, but gradients flow through the whole video,
+    # so the unannotated frames are learned from too (weak supervision)
 
     loss_seg = (
         compute_seg_loss(pred_seg_a4c, y_seg_a4c) +
         compute_seg_loss(pred_seg_psax, y_seg_psax)
     ) * 0.5
 
-    # This auxiliary segmentation loss is computed only on the ED and ES frames from both the predicted segmentation masks and the
-    # ground truth segmentation masks, this loss is used to provide a stronger and more direct supervision on the signal from the ED
-    # and ES frames which are clinicly the most important frames for the EF regression tasks. Without it, the regression task might have to
-    # rely on the weak supervision from the full video.
+    # Auxiliary loss on just the ED and ES frames, the most important ones for EF, for a
+    # stronger and more direct signal than the weak full-video supervision
 
     loss_ed_es = torch.tensor(0.0, device=pred_reg.device)
 
@@ -126,8 +120,9 @@ def compute_loss(pred_reg, pred_seg_pair, y_reg, y_seg_pair, pred_ed_es=None, gt
     # -------------------------
     # FINAL COMBINATION
     # -------------------------
-    # Combines the regression loss and the segmentation loss. The segmentation loss is removed from the total loss once fine tuning starts
-    # to allow the model to focus solely on optimizing the regression performance while the segmentation is frozen.
+
+    # The segmentation loss is dropped in phase 2, while segmentation is frozen,
+    # so the model focuses only on the regression
 
     if not seg_enable:
         loss_seg = torch.tensor(0.0, device=pred_reg.device)

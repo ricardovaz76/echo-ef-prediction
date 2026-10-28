@@ -1,9 +1,7 @@
 # Two-phase training for EchoNetModel
-#
 # Phase 1: joint segmentation + EF regression, keeps the best val Dice checkpoint
-# Phase 2: segmentation (including the shared encoder) frozen, fine-tunes the
-#          EF regression and keeps the best val MAE checkpoint
-#
+# Phase 2: segmentation and encoder frozen, fine-tunes EF, keeps the best val MAE checkpoint
+
 # Run from the repo root:
 #   python -m training.train --dataset-root path/to/dataset --processed-root path/to/processed
 
@@ -180,9 +178,7 @@ def main(argv=None):
         lr=args.lr_p2,
     )
 
-    # Scheduler:
-    # Looks for improved MAE score, if the score does not improve
-    # after 3 epochs, then the learning rate is halved
+    # Lowers the learning rate when val MAE stops improving (by default halved after 3 epochs)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer_p2,
         mode="min",
@@ -206,9 +202,7 @@ def main(argv=None):
         val_mae  = metrics["mae"]
         val_dice = metrics["dice"]
 
-        # Updates scheduler
-        # If mae improves then scheduler resets
-        # If mae does not improve for 3 epochs then schduler halves the learning rate
+        # Updates the scheduler with this epoch's val MAE
         scheduler.step(val_mae)
 
         # Save losses and val metrics for loss and val curve
