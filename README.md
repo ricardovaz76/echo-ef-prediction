@@ -40,19 +40,23 @@ Raw-video inference had no failures and took about 72 ms per pair on a GPU.
 
 <p><em>Training loss and validation metrics across both phases</em></p>
 
-![Training curves](results/trainingcurves.png)
+![Training curves](results/training_curves.png)
 
 <p><em>Predicted vs actual EF on the test set</em></p>
 
-![Scatter plot](results/Scatterplot.png)
+![Scatter plot](results/scatter.png)
 
 <p><em>Agreement between predicted and actual EF</em></p>
 
-![Bland-Altman plot](results/BlandAltman.png)
+![Bland-Altman plot](results/bland_altman.png)
 
 <p><em>Distribution of prediction errors</em></p>
 
-![Error distribution](results/ErrorDist.png)
+![Error distribution](results/error_distribution.png)
+
+<p><em>Prediction error across the range of true EF</em></p>
+
+![Error vs true EF](results/error_vs_true.png)
 
 ## Features
 
