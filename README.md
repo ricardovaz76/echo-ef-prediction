@@ -5,6 +5,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)
 ![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=flat&logo=opencv&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat&logo=githubactions&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 A deep learning model that segments the left ventricle and predicts ejection fraction (EF) from pediatric echocardiogram videos, served through a REST API. It takes an apical 4-chamber (A4C) and a parasternal short-axis (PSAX) video from the same visit and returns the EF as a percentage. A web frontend that uses this API is in progress.
 
@@ -39,19 +40,23 @@ Raw-video inference had no failures and took about 72 ms per pair on a GPU.
 
 <p><em>Training loss and validation metrics across both phases</em></p>
 
-![Training curves](results/trainingcurves.png)
+![Training curves](results/training_curves.png)
 
 <p><em>Predicted vs actual EF on the test set</em></p>
 
-![Scatter plot](results/Scatterplot.png)
+![Scatter plot](results/scatter.png)
 
 <p><em>Agreement between predicted and actual EF</em></p>
 
-![Bland-Altman plot](results/BlandAltman.png)
+![Bland-Altman plot](results/bland_altman.png)
 
 <p><em>Distribution of prediction errors</em></p>
 
-![Error distribution](results/ErrorDist.png)
+![Error distribution](results/error_distribution.png)
+
+<p><em>Prediction error across the range of true EF</em></p>
+
+![Error vs true EF](results/error_vs_true.png)
 
 ## Features
 
@@ -171,7 +176,7 @@ Thank you to Stanford University and the EchoNet team for making this dataset av
 
 ## License
 
-_TBD_
+Distributed under the MIT License. See `LICENSE` for details.
 
 ## Contact
 

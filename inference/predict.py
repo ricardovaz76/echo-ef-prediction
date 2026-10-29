@@ -1,5 +1,5 @@
 # Predicts EF from one A4C and one PSAX video of the same visit
-#
+
 # Run from the repo root:
 #   python3 -m inference.predict --a4c path/to/a4c.avi --psax path/to/psax.avi \
 #       --checkpoint checkpoints/best_model_mae.pth --output result.json

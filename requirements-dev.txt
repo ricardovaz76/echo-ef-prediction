@@ -1,7 +1,5 @@
-# Everything in requirements.txt plus the tools for running the tests, for
-# development machines and CI (a server only needs requirements.txt)
-#
-#   pip install -r requirements-dev.txt
+# requirements.txt plus the test tools, for development machines and CI
+# (a server only needs requirements.txt)
 
 -r requirements.txt
 

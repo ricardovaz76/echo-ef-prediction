@@ -1,10 +1,5 @@
-# Packages needed to train, evaluate and serve the model, pinned to the versions
-# the project was verified with (Python 3.10)
-#
-#   pip install -r requirements.txt
-#
-# On Linux, PyPI's torch is the CUDA build. Machines without a GPU (e.g. CI) can
-# install the much smaller CPU build first:
+# Pinned packages to train, evaluate and serve the model (Python 3.10). Without a GPU,
+# install the much smaller CPU build of torch first (PyPI's Linux torch is the CUDA build):
 #   pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cpu
 
 # Model

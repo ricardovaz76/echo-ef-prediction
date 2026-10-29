@@ -38,10 +38,6 @@ def check_clip_config(processed_root, clip_config):
 
 
 # Runs the full data pipeline and returns the train/val/test datasets
-#
-# Follows the same order as notebooks/data_exploration.ipynb, which runs these
-# steps one at a time for inspection.
-#
 # dataset_root:   folder containing the A4C/ and PSAX/ folders
 # processed_root: folder to save the extracted clips (.npz) to
 # extract_frames: set to False to reuse clips already extracted to processed_root

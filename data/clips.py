@@ -18,11 +18,8 @@ def fits_in_clip(ed_pos, es_pos, clip_length=CLIP_LENGTH):
     return abs(ed_pos - es_pos) < clip_length
 
 
-# Start position of the clip so the ED -> ES span sits in the middle of it,
-# shifted back inside the video when the span is near the start or end
-#
-# Shared by training (annotated ED/ES) and inference (predicted ED/ES) so the
-# model always sees ED and ES placed the same way
+# Start position that centers the ED -> ES span in the clip, kept inside the video.
+# Shared by training and inference so the model always sees ED and ES placed the same way
 def clip_start(ed_pos, es_pos, n_frames, clip_length=CLIP_LENGTH):
     lo, hi = min(ed_pos, es_pos), max(ed_pos, es_pos)
 
@@ -32,13 +29,9 @@ def clip_start(ed_pos, es_pos, n_frames, clip_length=CLIP_LENGTH):
     return max(start, 0)
 
 
-# Cuts clip_length frames out of the resampled video starting at start
-#
-# Videos shorter than clip_length are padded by repeating their last frame, so
-# every clip has the same length
-#
-# Returns the clip (clip_length, H, W), clip_src, the original frame index of
-# each clip frame, and n_valid, how many frames are real before the padding
+# Cuts clip_length frames from start, padding short videos by repeating the last frame.
+# Returns the clip (clip_length, H, W), clip_src (original frame index of each clip
+# frame) and n_valid (number of real frames before the padding)
 def extract_clip(frames, src_idx, start, clip_length=CLIP_LENGTH):
     clip = frames[start:start + clip_length]
     clip_src = src_idx[start:start + clip_length]

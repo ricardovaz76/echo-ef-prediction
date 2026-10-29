@@ -3,12 +3,8 @@ import torch
 from .metrics import dice_score, get_frame, r2_metric
 
 
-# Runs the model over the test set and computes the final metrics
-#
-# ef_mean and ef_std are the train set EF stats used to convert predictions back to EF %
-# num_visual_samples is how many samples per batch to keep for the segmentation overlays
-#
-# Returns:
+# Runs the model over the test set and computes the final metrics. ef_mean/ef_std convert
+# predictions back to EF %, num_visual_samples is how many samples per batch to keep. Returns:
 #   metrics:     dict of mae, rmse, r2, within_5 and dice
 #   all_preds:   predicted EF for every sample (EF %)
 #   all_targets: ground truth EF for every sample (EF %)

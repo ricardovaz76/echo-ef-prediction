@@ -29,12 +29,8 @@ def create_mask(coords, size=112):
     return mask
 
 
-# Gathers all of the coordinates of the FileName and frame number pair and creates
-# the segmentation mask and stores them in the dictionary
-#
-# Key: (FileName, Frame)
-#
-# Value: Binary mask
+# Builds the segmentation mask for every traced (FileName, Frame) pair
+# Key: (FileName, Frame), Value: binary mask
 def build_mask_dict(df_volume):
     mask_dict = {}
     for (fname, frame), group in df_volume.groupby(["FileName", "Frame"]):
@@ -43,12 +39,8 @@ def build_mask_dict(df_volume):
     return mask_dict
 
 
-# Lookup Dictionary that maps each filename to a list of all the frame numbers
-# that have annotations for it.
-#
-# Key: FileName
-#
-# Value: List of frame numbers
+# Maps each filename to the frame numbers that have annotations
+# Key: FileName, Value: list of frame numbers
 def build_frame_dict(mask_dict):
     frame_dict = defaultdict(list)
     for (fname, frame) in mask_dict.keys():

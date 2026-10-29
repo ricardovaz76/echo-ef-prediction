@@ -64,11 +64,9 @@ class EchoPredictor:
     area_tensor = torch.cat(areas, dim=0)
     return area_tensor.cpu().numpy()
 
-  # Turns one video into the clip the model sees, placed around the predicted
-  # ED -> ES span the same way training clips were placed around the annotated one
-  #
-  # Returns the clip (1, clip_length, 1, 112, 112) and n_valid (1,), the number of
-  # real frames before padding, which the transformer uses to ignore the padding
+  # Turns one video into the model's clip, placed around the predicted ED -> ES span like
+  # training clips. Returns the clip (1, clip_length, 1, 112, 112) and n_valid (1,), the
+  # number of real frames, which the transformer uses to ignore the padding
   def prepare_view(self, video_path):
     clip_length = self.config["clip_length"]
 
