@@ -1,6 +1,6 @@
 # Tests for the parts of the API that can break in production: startup, the
 # upload contract, error status codes, upload limits, temp file cleanup and CORS
-#
+
 # Run from the repo root:
 #   python3 -m pytest tests/ -v
 
