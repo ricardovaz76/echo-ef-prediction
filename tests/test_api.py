@@ -4,8 +4,14 @@
 # Run from the repo root:
 #   python3 -m pytest tests/ -v
 
+import base64
+import io
 import os
 import tempfile
+
+import av
+import cv2
+import numpy as np
 import pytest
 import torch
 
@@ -56,6 +62,35 @@ def test_health(client):
 
   assert response.status_code == 200
   assert {"status", "device", "checkpoint"} <= response.json().keys()
+
+
+# A generated pulsing circle at 32 FPS, so the full pipeline can run without dataset videos
+def make_video(path, n_frames=40):
+  writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), TARGET_FPS, (112, 112))
+  for t in range(n_frames):
+    frame = np.zeros((112, 112, 3), dtype=np.uint8)
+    cv2.circle(frame, (56, 56), 25 + int(15 * np.sin(2 * np.pi * t / TARGET_FPS)), (255, 255, 255), -1)
+    writer.write(frame)
+  writer.release()
+  return path
+
+
+# Browsers only play H.264 in yuv420p, so this checks the videos the frontend will receive
+def test_predict_returns_playable_videos(client, tmp_path):
+  video = make_video(tmp_path / "scan.avi")
+
+  with open(video, "rb") as a4c, open(video, "rb") as psax:
+    response = client.post("/predict", files={"a4c": a4c, "psax": psax})
+
+  assert response.status_code == 200
+  assert isinstance(response.json()["ef"], float)
+
+  for view in ("a4c", "psax"):
+    with av.open(io.BytesIO(base64.b64decode(response.json()["videos"][view]))) as container:
+      codec = container.streams.video[0].codec_context
+      assert (codec.name, codec.pix_fmt) == ("h264", "yuv420p")
+      assert (codec.width, codec.height) == (448, 448)
+      assert sum(1 for _ in container.decode(video=0)) == 40
 
 
 def test_predict_missing_file(client):
