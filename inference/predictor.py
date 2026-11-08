@@ -49,20 +49,21 @@ class EchoPredictor:
     video = (torch.from_numpy(frames).to(self.device).float()/255.0).unsqueeze(1).unsqueeze(0)
     return video
 
+  # Returns the soft LV area per frame (T,) and the masks thresholded at 0.5 (T, H, W).
+  # Masks go to the CPU chunk by chunk so a long video can't fill the GPU's memory
   def segment_frames(self, frames, batch_size=64):
     seg_model = self.model.seg_model
     seg_input = self.convert_to_model_input(frames) # (B, T, C, H, W)
     seg_input = seg_input.squeeze(0) # -> (T, C, H, W) expected input for segmentations
 
-    areas = []
+    areas, masks = [], []
     with torch.inference_mode():
       for i in range(0, len(frames), batch_size):
-        logits = seg_model(seg_input[i:i+batch_size])
-        chunk_areas = torch.sigmoid(logits).sum(dim=[-1, -2]).squeeze(1)
-        areas.append(chunk_areas)
+        probs = torch.sigmoid(seg_model(seg_input[i:i+batch_size])).squeeze(1) # (N, H, W)
+        areas.append(probs.sum(dim=[-1, -2]))
+        masks.append((probs > 0.5).cpu())
 
-    area_tensor = torch.cat(areas, dim=0)
-    return area_tensor.cpu().numpy()
+    return torch.cat(areas, dim=0).cpu().numpy(), torch.cat(masks, dim=0).numpy()
 
   # Turns one video into the model's clip, placed around the predicted ED -> ES span like
   # training clips. Returns the clip (1, clip_length, 1, 112, 112) and n_valid (1,), the
@@ -71,7 +72,7 @@ class EchoPredictor:
     clip_length = self.config["clip_length"]
 
     frames = self.load_view(video_path)
-    areas = self.segment_frames(frames)
+    areas, _ = self.segment_frames(frames)
     ed, es = find_ed_es(areas, clip_length)
 
     # extract_clip also tracks each frame's source index, which the model never
