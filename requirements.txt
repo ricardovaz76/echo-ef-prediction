@@ -10,6 +10,7 @@ torchvision==0.20.1
 numpy==1.26.4
 pandas==2.2.2
 opencv-python-headless==4.10.0.84
+av==17.1.0   # H.264 encoding, which OpenCV's pip builds can't do
 
 # Evaluation metrics and plots
 scikit-learn==1.5.2

@@ -4,6 +4,7 @@ from evaluation import resolve_clip_config
 from models import build_model
 from data import load_video_frames, resample_frames, clip_start, extract_clip
 from .beats import find_ed_es
+from .video import encode_overlay_video
 
 
 class EchoPredictor:
@@ -49,29 +50,30 @@ class EchoPredictor:
     video = (torch.from_numpy(frames).to(self.device).float()/255.0).unsqueeze(1).unsqueeze(0)
     return video
 
+  # Returns the soft LV area per frame (T,) and the masks thresholded at 0.5 (T, H, W).
+  # Masks go to the CPU chunk by chunk so a long video can't fill the GPU's memory
   def segment_frames(self, frames, batch_size=64):
     seg_model = self.model.seg_model
     seg_input = self.convert_to_model_input(frames) # (B, T, C, H, W)
     seg_input = seg_input.squeeze(0) # -> (T, C, H, W) expected input for segmentations
 
-    areas = []
+    areas, masks = [], []
     with torch.inference_mode():
       for i in range(0, len(frames), batch_size):
-        logits = seg_model(seg_input[i:i+batch_size])
-        chunk_areas = torch.sigmoid(logits).sum(dim=[-1, -2]).squeeze(1)
-        areas.append(chunk_areas)
+        probs = torch.sigmoid(seg_model(seg_input[i:i+batch_size])).squeeze(1) # (N, H, W)
+        areas.append(probs.sum(dim=[-1, -2]))
+        masks.append((probs > 0.5).cpu())
 
-    area_tensor = torch.cat(areas, dim=0)
-    return area_tensor.cpu().numpy()
+    return torch.cat(areas, dim=0).cpu().numpy(), torch.cat(masks, dim=0).numpy()
 
   # Turns one video into the model's clip, placed around the predicted ED -> ES span like
-  # training clips. Returns the clip (1, clip_length, 1, 112, 112) and n_valid (1,), the
-  # number of real frames, which the transformer uses to ignore the padding
+  # training clips. Returns a dict of the clip (1, clip_length, 1, 112, 112), n_valid (1,)
+  # (real frames, so the transformer ignores padding), and the whole video's frames and masks
   def prepare_view(self, video_path):
     clip_length = self.config["clip_length"]
 
     frames = self.load_view(video_path)
-    areas = self.segment_frames(frames)
+    areas, masks = self.segment_frames(frames)
     ed, es = find_ed_es(areas, clip_length)
 
     # extract_clip also tracks each frame's source index, which the model never
@@ -82,18 +84,32 @@ class EchoPredictor:
     clip = self.convert_to_model_input(clip)
     n_valid = torch.tensor([n_valid], device=self.device)
 
-    return clip, n_valid
+    return {"clip": clip, "n_valid": n_valid, "frames": frames, "masks": masks}
 
-  # Predicts EF (%) from an A4C and a PSAX video of the same visit
-  def predict(self, a4c_path, psax_path):
-    a4c, valid_a4c = self.prepare_view(a4c_path)
-    psax, valid_psax = self.prepare_view(psax_path)
-
+  def _predict_ef(self, a4c, psax):
     with torch.inference_mode():
-      ef, _ = self.model(a4c, psax, valid_a4c, valid_psax)   # (1, 1)
+      ef, _ = self.model(a4c["clip"], psax["clip"], a4c["n_valid"], psax["n_valid"])   # (1, 1)
 
     # The model was trained on z-scored EF, so undo that with the train set stats
     return ef.item() * self.ef_std + self.ef_mean
+
+  # Predicts EF (%) from an A4C and a PSAX video of the same visit
+  def predict(self, a4c_path, psax_path):
+    return self._predict_ef(self.prepare_view(a4c_path), self.prepare_view(psax_path))
+
+  # Same as predict, plus each whole video with its LV masks overlaid, as H.264 MP4 bytes
+  def predict_with_videos(self, a4c_path, psax_path):
+    a4c = self.prepare_view(a4c_path)
+    psax = self.prepare_view(psax_path)
+    fps = self.config["target_fps"]
+
+    return {
+      "ef": self._predict_ef(a4c, psax),
+      "videos": {
+        "a4c": encode_overlay_video(a4c["frames"], a4c["masks"], fps),
+        "psax": encode_overlay_video(psax["frames"], psax["masks"], fps),
+      },
+    }
 
   # The first pass on a GPU is slow (~1.5 s) while CUDA loads its kernels, so a
   # server runs one blank clip through the model at startup instead of making

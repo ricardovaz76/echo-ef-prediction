@@ -2,6 +2,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from inference import EchoPredictor
+import base64
 import os
 import tempfile
 from .helpers import save_upload, resolve_checkpoint, UploadTooLarge
@@ -46,9 +47,11 @@ def predict(a4c: UploadFile = File(...), psax: UploadFile = File(...)):
 
     # Try block for model predictions
     try:
-      prediction = app.state.predictor.predict(a4c_path, psax_path)
+      result = app.state.predictor.predict_with_videos(a4c_path, psax_path)
     except ValueError as e:
       msg = str(e).replace(a4c_path, a4c.filename).replace(psax_path, psax.filename)
       raise HTTPException(status_code=400, detail=msg)
-    
-  return {"ef": round(prediction, 1)}
+
+  # Videos are sent inline as base64, so the server never has to store a scan
+  videos = {view: base64.b64encode(mp4).decode("ascii") for view, mp4 in result["videos"].items()}
+  return {"ef": round(result["ef"], 1), "videos": videos}
