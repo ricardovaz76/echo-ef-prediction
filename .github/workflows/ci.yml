@@ -23,7 +23,7 @@ jobs:
       # CPU torch first: runners have no GPU, and the CUDA build is a 2-3 GB download
       - name: Install dependencies
         run: |
-          pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements-dev.txt
 
       - name: Run tests
