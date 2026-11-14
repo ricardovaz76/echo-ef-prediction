@@ -26,17 +26,19 @@ The model was trained on the [EchoNet-Pediatric](https://echonet.github.io/pedia
 
 ## Results
 
-Measured on the 351 A4C + PSAX test pairs. "Annotated clips" uses the dataset's traced ED/ES frames; "raw videos" is the full inference pipeline, which finds ED/ES itself.
+Measured on the 351 A4C + PSAX test pairs. "Annotated clips" uses the dataset's traced ED/ES frames; "raw videos" is the full inference pipeline, which finds every heartbeat itself and averages the EF over them.
 
 | Metric | Annotated clips | Raw videos |
 | --- | --- | --- |
-| MAE (EF %) | 4.09 | 4.17 |
-| RMSE (EF %) | 5.61 | 5.90 |
-| R² | 0.738 | 0.709 |
-| Within ±5 EF % | 70.1% | 71.2% |
-| AUC (EF < 50%) | 0.961 | 0.948 |
+| MAE (EF %) | 4.09 | 4.07 |
+| RMSE (EF %) | 5.61 | 5.63 |
+| R² | 0.738 | 0.736 |
+| Within ±5 EF % | 70.1% | 70.7% |
+| AUC (EF < 50%) | 0.961 | 0.963 |
 
-Raw-video inference had no failures and took about 72 ms per pair on a GPU.
+Raw-video inference had no failures and took about 80 ms per pair on a GPU.
+
+**Known limitation:** the model tends to overestimate low EFs (an average of +6.7 points below 40%), likely because most training patients have a normal EF. Annotated clips show the same bias, so it comes from training rather than ED/ES detection.
 
 <p><em>Training loss and validation metrics across both phases</em></p>
 
@@ -62,8 +64,7 @@ Raw-video inference had no failures and took about 72 ms per pair on a GPU.
 
 - **EF prediction**
   - Predicts EF from a raw A4C + PSAX video pair, with no manual tracing
-  - Detects ED and ES automatically from the predicted ventricle area
-  - Uses one heartbeat per view; averaging over several beats is planned
+  - Detects every heartbeat automatically from the predicted ventricle area and averages the EF over them
 
 - **Serving**
   - REST API with `GET /health` and `POST /predict`, plus interactive docs at `/docs`

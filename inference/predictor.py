@@ -3,7 +3,7 @@ import torch
 from evaluation import resolve_clip_config
 from models import build_model
 from data import load_video_frames, resample_frames, clip_start, extract_clip
-from .beats import find_ed_es
+from .beats import find_beats
 from .video import encode_overlay_video
 
 
@@ -66,32 +66,47 @@ class EchoPredictor:
 
     return torch.cat(areas, dim=0).cpu().numpy(), torch.cat(masks, dim=0).numpy()
 
-  # Turns one video into the model's clip, placed around the predicted ED -> ES span like
-  # training clips. Returns a dict of the clip (1, clip_length, 1, 112, 112), n_valid (1,)
-  # (real frames, so the transformer ignores padding), and the whole video's frames and masks
+  # Turns one video into a clip per heartbeat, each placed around its ED -> ES span like training
+  # clips. Returns a dict of the clips (B, clip_length, 1, 112, 112), n_valid (B,) (real frames,
+  # so the transformer ignores padding), the beats, and the whole video's frames and masks
   def prepare_view(self, video_path):
     clip_length = self.config["clip_length"]
 
     frames = self.load_view(video_path)
     areas, masks = self.segment_frames(frames)
-    ed, es = find_ed_es(areas, clip_length)
+    beats = find_beats(areas, clip_length, self.config["target_fps"])
 
-    # extract_clip also tracks each frame's source index, which the model never
-    # reads, so positions in the resampled video are enough here
-    start = clip_start(ed, es, len(frames), clip_length)
-    clip, _, n_valid = extract_clip(frames, np.arange(len(frames)), start, clip_length)
+    clips, n_valid = [], []
+    for ed, es in beats:
+      # extract_clip also tracks each frame's source index, which the model never
+      # reads, so positions in the resampled video are enough here
+      start = clip_start(ed, es, len(frames), clip_length)
+      clip, _, valid = extract_clip(frames, np.arange(len(frames)), start, clip_length)
+      clips.append(self.convert_to_model_input(clip))
+      n_valid.append(valid)
 
-    clip = self.convert_to_model_input(clip)
-    n_valid = torch.tensor([n_valid], device=self.device)
+    return {
+      "clips": torch.cat(clips),
+      "n_valid": torch.tensor(n_valid, device=self.device),
+      "beats": beats,
+      "frames": frames,
+      "masks": masks,
+    }
 
-    return {"clip": clip, "n_valid": n_valid, "frames": frames, "masks": masks}
+  # Averages the EF over every A4C beat x PSAX beat combination, so one unlucky beat can't
+  # decide the result. Combinations run in batches to keep memory bounded on long videos
+  def _predict_ef(self, a4c, psax, batch_size=8):
+    pairs = [(i, j) for i in range(len(a4c["beats"])) for j in range(len(psax["beats"]))]
 
-  def _predict_ef(self, a4c, psax):
+    efs = []
     with torch.inference_mode():
-      ef, _ = self.model(a4c["clip"], psax["clip"], a4c["n_valid"], psax["n_valid"])   # (1, 1)
+      for k in range(0, len(pairs), batch_size):
+        i, j = (list(idx) for idx in zip(*pairs[k:k + batch_size]))
+        ef, _ = self.model(a4c["clips"][i], psax["clips"][j], a4c["n_valid"][i], psax["n_valid"][j])
+        efs.append(ef.reshape(-1))
 
     # The model was trained on z-scored EF, so undo that with the train set stats
-    return ef.item() * self.ef_std + self.ef_mean
+    return torch.cat(efs).mean().item() * self.ef_std + self.ef_mean
 
   # Predicts EF (%) from an A4C and a PSAX video of the same visit
   def predict(self, a4c_path, psax_path):
